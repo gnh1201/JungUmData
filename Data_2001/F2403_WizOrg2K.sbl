@@ -1,0 +1,2849 @@
+'조직도 만들기
+'1997.04.30     문경석
+'1999.10.25		이병희
+
+'Constants
+Const MAX_NUM_ITEM    = 200
+Const MAX_NUM_DEPTH   = 200
+Const MAX_NUM_DEPTH2  = 99		'MAX_NUM_DEPTH - 1
+Const MAX_NUM_CHILD   = 200
+Const B_MAX_NUM_FILES = 100
+
+Global Hun70                    As Object
+Global g_CtrlExt                As Object
+Global g_FileExt                As Object
+Global dmy                      As Integer
+Global g_iMakeMode              As Integer
+Global g_lMakeFrame             As Long
+
+Global g_CurDir                 As String
+Global g_Make                   As Integer
+Global g_Next                   As Integer
+Global g_Prev                   As Integer
+
+
+'페이지
+Global g_wdPaper                As Long
+Global g_hgPaper                As Long
+Global g_lmPaper                As Long
+Global g_tmPaper                As Long
+Global g_rmPaper                As Long
+Global g_bmPaper                As Long
+Global g_sxPage                 As Long
+Global g_syPage                 As Long
+Global g_exPage                 As Long
+Global g_eyPage                 As Long
+Global g_wdPage                 As Long
+Global g_hgPage                 As Long
+
+'조직도
+'Global g_wdLogo                As Long
+'Global g_hgLogo                As Long
+'Global g_sxLogo                As Long
+'Global g_syLogo                As Long
+'Global g_exLogo                As Long
+'Global g_eyLogo                As Long
+'Global g_gpLogo                As Long
+
+Global g_wdTitle                As Long
+Global g_hgTitle                As Long
+Global g_sxTitle                As Long
+Global g_syTitle                As Long
+Global g_exTitle                As Long
+Global g_eyTitle                As Long
+Global g_gpTitle                As Long
+
+Global g_wdOrgBrd               As Long
+Global g_hgOrgBrd               As Long
+Global g_sxOrgBrd               As Long
+Global g_syOrgBrd               As Long
+Global g_exOrgBrd               As Long
+Global g_eyOrgBrd               As Long
+Global g_ShareY                 As Long
+
+Global AreaX                    As Long
+Global AreaY                    As Long
+Global BoxX                     As Long
+Global BoxY                     As Long
+Global GapX                     As Long
+Global GapY                     As Long
+Global StartY2(MAX_NUM_DEPTH)   As Long
+Global BoxY2(MAX_NUM_DEPTH)     As Long
+
+Global ListOrgCount								As Integer
+Global ListOrgDepth(MAX_NUM_ITEM)				As Integer
+Global ListOrgSize(MAX_NUM_ITEM)				As Integer
+Global ListOrgSizeEnable(MAX_NUM_ITEM)			As Integer
+Global ListOrgContent(MAX_NUM_ITEM)				As String
+Global ListOrgSelect							As Integer
+Global ListOrgOwn(MAX_NUM_DEPTH, MAX_NUM_CHILD)	As Integer
+Global ListOrgPos(MAX_NUM_ITEM)					As Long
+Global ListOrgPrg(MAX_NUM_ITEM)					As Long
+Global ListOrgMaxDepth							As Integer
+Global ListOrgMaxHeight(MAX_NUM_DEPTH)			As Integer
+Global ListOrgFrame(MAX_NUM_ITEM)				As Integer
+
+'s_FrameSize() : ListOrgSize()이다.
+Global s_EnableTitle            As Integer
+Global s_TitleText              As String
+Global s_TitleFont              As Integer
+Global s_TitleSize              As Integer
+Global s_TitleColor             As Integer
+Global s_FrameType              As Integer
+Global s_Transparent            As Integer
+Global s_FrameSColor            As Integer
+Global s_FrameEColor            As Integer
+Global s_FrameGradient          As Integer
+Global s_FrameShade             As Integer
+Global s_EnableLink             As Integer
+Global s_LinkType               As Integer
+Global s_LinkWidth              As Integer
+Global s_LinkColor              As Integer
+Global s_StyleFile              As String
+Global s_strParam               As String
+Global s_iParam                 As Integer
+
+
+
+'0부터 이므로 하나 더 많다.
+Const E_COUNT_iFrameSize   =  9
+Const E_COUNT_strTitleFont =  3
+Const E_COUNT_iTitleSize   = 14
+Const E_COUNT_iTitleColor  =  6
+Const E_COUNT_iFrameType   =  1
+Const E_COUNT_iFrameSColor =  7
+Const E_COUNT_iFrameEColor =  6
+Const E_COUNT_iLinkType    =  2
+Const E_COUNT_iLinkWidth   =  9
+Const E_COUNT_iLinkColor   =  6
+
+Global e_strFrameSize(E_COUNT_iFrameSize)       As String
+Global e_iFrameSize(E_COUNT_iFrameSize)         As Integer ' internal e_XXX
+
+Global e_strTitleFont(E_COUNT_strTitleFont)     As String
+
+Global e_strTitleSize(E_COUNT_iTitleSize)       As String
+Global e_iTitleSize(E_COUNT_iTitleSize)         As Integer ' internal e_XXX
+Global e_iTitleSizePt(E_COUNT_iTitleSize)       As Integer ' internal e_XXX
+
+Global e_strTitleColor(E_COUNT_iTitleColor)     As String
+Global e_iTitleColorR(E_COUNT_iTitleColor)      As Integer ' internal e_XXX
+Global e_iTitleColorG(E_COUNT_iTitleColor)      As Integer ' internal e_XXX
+Global e_iTitleColorB(E_COUNT_iTitleColor)      As Integer ' internal e_XXX
+
+Global e_strFrameType(E_COUNT_iFrameType)       As String
+Global e_iFrameType(E_COUNT_iFrameType)         As Integer ' internal e_XXX
+
+Global e_strFrameSColor(E_COUNT_iFrameSColor)   As String
+Global e_iFrameSColorR(E_COUNT_iFrameSColor)    As Integer ' internal e_XXX
+Global e_iFrameSColorG(E_COUNT_iFrameSColor)    As Integer ' internal e_XXX
+Global e_iFrameSColorB(E_COUNT_iFrameSColor)    As Integer ' internal e_XXX
+
+Global e_strFrameEColor(E_COUNT_iFrameEColor)   As String
+Global e_iFrameEColorR(E_COUNT_iFrameEColor)    As Integer ' internal e_XXX
+Global e_iFrameEColorG(E_COUNT_iFrameEColor)    As Integer ' internal e_XXX
+Global e_iFrameEColorB(E_COUNT_iFrameEColor)    As Integer ' internal e_XXX
+
+Global e_strLinkType(E_COUNT_iLinkType)         As String
+Global e_iLinkType(E_COUNT_iLinkType)           As Integer ' internal e_XXX
+
+Global e_strLinkWidth(E_COUNT_iLinkWidth)       As String
+Global e_iLinkWidth(E_COUNT_iLinkWidth)         As Integer ' internal e_XXX
+Global e_iLinkWidthPt(E_COUNT_iLinkWidth)       As Integer ' internal e_XXX
+
+Global e_strLinkColor(E_COUNT_iLinkColor)       As String
+Global e_iLinkColorR(E_COUNT_iLinkColor)        As Integer ' internal e_XXX
+Global e_iLinkColorG(E_COUNT_iLinkColor)        As Integer ' internal e_XXX
+Global e_iLinkColorB(E_COUNT_iLinkColor)        As Integer ' internal e_XXX
+
+
+
+'--------------------------------------------------------------------------------TTI Walk
+
+Global b_Files(B_MAX_NUM_FILES)             As String
+Global b_Count                              As Integer
+Global b_Item(MAX_NUM_ITEM)                 As String
+Global b_Value(MAX_NUM_ITEM)                As String
+Global b_Parent(MAX_NUM_ITEM)               As Integer
+Global b_Child(MAX_NUM_ITEM, MAX_NUM_CHILD) As Integer
+
+Sub DirWalk(strPath As String)
+   Dim strDir  As String
+   Dim strFile As String
+   strDir = CurDir
+   If Right(CurDir, 1) <> "\" Then
+      strDir = strDir + "\"
+   End If
+   If Instr(strPath, ":") = 0 And Instr(strPath, "\\") = 0 Then   'No drive specified.
+      strPath = strDir + strPath
+   End If
+   b_Count = 0
+   strFile = Dir(strPath)
+   Do While strFile <> "" And b_Count <= B_MAX_NUM_FILE
+      b_Files(b_Count) = strDir + strFile
+      b_Count = b_Count + 1
+      strFile = Dir
+   Loop
+End Sub
+
+Sub GetItemAndValue(strLine As String, iDepth As Integer, strItem As String, strValue As String)
+   Dim strLineCopy As String
+   Dim iLenOrg     As Integer
+   Dim iAssignPos  As Integer
+   strLineCopy = strLine
+   iLenOrg = Len(strLineCopy)
+   strLineCopy = LTrim(strLineCopy)
+   iDepth = iLenOrg - Len(strLineCopy)
+   iAssignPos = Instr(strLineCopy, "=")
+   If iAssignPos = 0 Then
+      strItem  = RTrim(strLineCopy)
+      strValue = ""
+   Else
+      strItem  = RTrim(Left(strLineCopy, iAssignPos - 1))
+      strValue = RTrim(LTrim(Mid(strLineCopy, iAssignPos + 1)))
+   End If
+End Sub
+
+Function CheckTtiHeader(strFile As String, strItem As String, strValue As String) As Integer
+   Dim strItemCopy  As String
+   Dim strValueCopy As String
+   Dim iRetValue    As Integer
+   Dim strLine      As String
+   Dim iDepth       As Integer   'Header이므로 사용안함
+   Dim strItemTmp   As String
+   Dim strValueTmp  As String
+   strItemCopy  = RTrim(LTrim(strItem))
+   strValueCopy = RTrim(LTrim(strValue))
+   iRetValue    = 0
+   Open strFile for Input As #1
+   Line Input #1, strLine
+   Do While (Not Eof(1)) And strLine <> ""
+      GetItemAndValue strLine, iDepth, strItemTmp, strValueTmp
+      If strItemTmp = strItemCopy And strValueTmp = strValueCopy Then
+         iRetValue = 1
+         Exit Do
+      Else
+         Line Input #1, strLine
+      End If
+   Loop
+   Close #1
+   CheckTtiHeader = iRetValue
+End Function
+
+Function GetTtiHeaderValue(strFile As String, strItem As String) As String
+   Dim strItemCopy  As String
+   Dim strRetValue  As String
+   Dim strLine      As String
+   Dim iDepth       As Integer   'Header이므로 사용안함
+   Dim strItemTmp   As String
+   Dim strValueTmp  As String
+   strItemCopy  = RTrim(LTrim(strItem))
+   iRetValue    = 0
+   Open strFile for Input As #1
+   strLine = "Empty"
+   Do While (Not Eof(1)) And strLine <> ""
+      Line Input #1, strLine
+      GetItemAndValue strLine, iDepth, strItemTmp, strValueTmp
+      If strItemTmp = strItemCopy Then
+         strRetValue = strValueTmp
+         Exit Do
+      End If
+   Loop
+   Close #1
+   GetTtiHeaderValue = strRetValue
+End Function
+
+Function GetTtiBodyValue(strFile As String, strItem As String) As String
+   Dim strItemCopy  As String
+   Dim strRetValue  As String
+   Dim strLine      As String
+   Dim iDepth       As Integer   'Header이므로 사용안함
+   Dim strItemTmp   As String
+   Dim strValueTmp  As String
+   strItemCopy  = RTrim(LTrim(strItem))
+   iRetValue    = 0
+   Open strFile for Input As #1
+   strLine = "Empty"
+   Do While (Not Eof(1)) And strLine <> ""   'Skip Header
+      Line Input #1, strLine
+   Loop
+   If Not Eof(1) Then
+      strLine = "Empty"
+      Do While (Not Eof(1)) And strLine <> ""
+         Line Input #1, strLine
+         GetItemAndValue strLine, iDepth, strItemTmp, strValueTmp
+         If strItemTmp = strItemCopy Then
+            strRetValue = strValueTmp
+            Exit Do
+         End If
+      Loop
+   End If
+   Close #1
+   GetTtiBodyValue = strRetValue
+End Function
+'--------------------------------------------------------------------------------TTI Walk
+
+'좌표계 변환
+Function TwipsToMM(ValTwips As Double) As Double
+    TwipsToMM = ValTwips * 254.0 / 14400.0
+End Function
+
+Function MMToTwips(ValMM As Double) As Double
+    MMToTwips = ValMM * 14400.0 / 254.0
+End Function
+
+Function TwipsToPt(ValTwips As Double) As Double
+    TwipsToPt = ValTwips / 20
+End Function
+
+Function PtToTwips(ValPt As Double) As Double
+    PtToTwips = ValPt * 20
+End Function
+
+
+
+'페이퍼 정보
+Sub GetPaperInfo()
+    dmy = Hun70.GetPaperSize(-1, -1, g_wdPaper, g_hgPaper)
+    dmy = Hun70.GetPaperMargins(-1, g_lmPaper, g_tmPaper, g_rmPaper, g_bmPaper)
+    g_sxPage = g_lmPaper
+    g_syPage = g_tmPaper
+    g_exPage = g_wdPaper - g_rmPaper - 1
+    g_eyPage = g_hgPaper - g_bmPaper - 1
+    g_wdPage = g_wdPaper - g_lmPaper - g_rmPaper
+    g_hgPage = g_hgPaper - g_tmPaper - g_bmPaper
+End Sub
+
+'페이지 정보
+Sub SetPageInfo()
+    If s_EnableTitle = 1 Then
+        g_wdTitle    = g_wdPage
+        g_hgTitle    = e_iTitleSize(s_TitleSize) * 1.5
+        g_sxTitle    = g_sxPage
+        g_syTitle    = g_syPage
+        g_exTitle    = g_sxTitle + g_wdTitle - 1
+        g_eyTitle    = g_syTitle + g_hgTitle - 1
+        g_gpTitle    = 0
+    End If
+'   g_wdLogo     = CLng(MMToTwips(CDbl(35)))
+'   g_hgLogo     = g_hgTitle - g_hgTitle / 10
+'   g_sxLogo     = g_exPage - g_wdLogo + 1
+'   g_syLogo     = g_syPage
+'   g_exLogo     = g_sxLogo + g_wdLogo - 1
+'   g_eyLogo     = g_syLogo + g_hgLogo - 1
+'   g_gpLogo     = 0
+    g_ShareY     = (g_hgPage - g_hgTitle) / 2
+    g_wdOrgBrd   = g_wdPage
+    g_hgOrgBrd   = g_hgPage - g_hgTitle - g_ShareY
+    g_sxOrgBrd   = g_sxPage
+    g_syOrgBrd   = g_syPage + g_hgTitle
+    g_exOrgBrd   = g_sxOrgBrd + g_wdOrgBrd - 1
+    g_eyOrgBrd   = g_syOrgBrd + g_hgOrgBrd - 1
+    g_gpOrgBrd   = 0
+End Sub
+
+
+
+Function SetEnumVar() As Integer
+
+    e_strFrameSize(0) = "1칸"
+    e_strFrameSize(1) = "2칸"
+    e_strFrameSize(2) = "3칸"
+    e_strFrameSize(3) = "4칸"
+    e_strFrameSize(4) = "5칸"
+    e_strFrameSize(5) = "6칸"
+    e_strFrameSize(6) = "7칸"
+    e_strFrameSize(7) = "8칸"
+    e_strFrameSize(8) = "9칸"
+    e_strFrameSize(9) = "10칸"
+
+    e_iFrameSize(0) =  1
+    e_iFrameSize(1) =  2
+    e_iFrameSize(2) =  3
+    e_iFrameSize(3) =  4
+    e_iFrameSize(4) =  5
+    e_iFrameSize(5) =  6
+    e_iFrameSize(6) =  7
+    e_iFrameSize(7) =  8
+    e_iFrameSize(8) =  9
+    e_iFrameSize(9) = 10
+
+    e_strTitleFont(0) = "굴림"
+    e_strTitleFont(1) = "궁서"
+    e_strTitleFont(2) = "돋움"
+    e_strTitleFont(3) = "바탕"
+
+    e_strTitleSize( 0) = "8"
+    e_strTitleSize( 1) = "9"
+    e_strTitleSize( 2) = "10"
+    e_strTitleSize( 3) = "11"
+    e_strTitleSize( 4) = "12"
+    e_strTitleSize( 5) = "13"
+    e_strTitleSize( 6) = "14"
+    e_strTitleSize( 7) = "16"
+    e_strTitleSize( 8) = "18"
+    e_strTitleSize( 9) = "24"
+    e_strTitleSize(10) = "32"
+    e_strTitleSize(11) = "36"
+    e_strTitleSize(12) = "48"
+    e_strTitleSize(13) = "72"
+    e_strTitleSize(14) = "127"
+
+    e_iTitleSize( 0) = CInt(PtToTwips(CDbl(  8)))
+    e_iTitleSize( 1) = CInt(PtToTwips(CDbl(  9)))
+    e_iTitleSize( 2) = CInt(PtToTwips(CDbl( 10)))
+    e_iTitleSize( 3) = CInt(PtToTwips(CDbl( 11)))
+    e_iTitleSize( 4) = CInt(PtToTwips(CDbl( 12)))
+    e_iTitleSize( 5) = CInt(PtToTwips(CDbl( 13)))
+    e_iTitleSize( 6) = CInt(PtToTwips(CDbl( 14)))
+    e_iTitleSize( 7) = CInt(PtToTwips(CDbl( 15)))
+    e_iTitleSize( 8) = CInt(PtToTwips(CDbl( 18)))
+    e_iTitleSize( 9) = CInt(PtToTwips(CDbl( 24)))
+    e_iTitleSize(10) = CInt(PtToTwips(CDbl( 32)))
+    e_iTitleSize(11) = CInt(PtToTwips(CDbl( 36)))
+    e_iTitleSize(12) = CInt(PtToTwips(CDbl( 48)))
+    e_iTitleSize(13) = CInt(PtToTwips(CDbl( 72)))
+    e_iTitleSize(14) = CInt(PtToTwips(CDbl(127)))
+
+    e_iTitleSizePt( 0) = 8
+    e_iTitleSizePt( 1) = 9
+    e_iTitleSizePt( 2) = 10
+    e_iTitleSizePt( 3) = 11
+    e_iTitleSizePt( 4) = 12
+    e_iTitleSizePt( 5) = 13
+    e_iTitleSizePt( 6) = 14
+    e_iTitleSizePt( 7) = 15
+    e_iTitleSizePt( 8) = 18
+    e_iTitleSizePt( 9) = 24
+    e_iTitleSizePt(10) = 32
+    e_iTitleSizePt(11) = 36
+    e_iTitleSizePt(12) = 48
+    e_iTitleSizePt(13) = 72
+    e_iTitleSizePt(14) = 127
+
+    e_strTitleColor(0) = "빨"
+    e_strTitleColor(1) = "주"
+    e_strTitleColor(2) = "노"
+    e_strTitleColor(3) = "초"
+    e_strTitleColor(4) = "파"
+    e_strTitleColor(5) = "남"
+    e_strTitleColor(6) = "보"
+
+    e_iTitleColorR(0) = 128
+    e_iTitleColorG(0) = 0
+    e_iTitleColorB(0) = 0
+    e_iTitleColorR(1) = 128
+    e_iTitleColorG(1) = 64
+    e_iTitleColorB(1) = 0
+    e_iTitleColorR(2) = 128
+    e_iTitleColorG(2) = 128
+    e_iTitleColorB(2) = 0
+    e_iTitleColorR(3) = 0
+    e_iTitleColorG(3) = 128
+    e_iTitleColorB(3) = 0
+    e_iTitleColorR(4) = 0
+    e_iTitleColorG(4) = 0
+    e_iTitleColorB(4) = 128
+    e_iTitleColorR(5) = 0
+    e_iTitleColorG(5) = 0
+    e_iTitleColorB(5) = 64
+    e_iTitleColorR(6) = 128
+    e_iTitleColorG(6) = 0
+    e_iTitleColorB(6) = 128
+
+    e_strFrameType(0) = "사각형"
+    e_strFrameType(1) = "둥근사각형"
+
+    e_iFrameType(0) = 2
+    e_iFrameType(1) = 31
+
+    e_strFrameSColor(0) = "투명"
+    e_strFrameSColor(1) = "빨"
+    e_strFrameSColor(2) = "주"
+    e_strFrameSColor(3) = "노"
+    e_strFrameSColor(4) = "초"
+    e_strFrameSColor(5) = "파"
+    e_strFrameSColor(6) = "남"
+    e_strFrameSColor(7) = "보"
+
+    e_iFrameSColorR(0) = -1
+    e_iFrameSColorG(0) = -1
+    e_iFrameSColorB(0) = -1
+    e_iFrameSColorR(1) = 255
+    e_iFrameSColorG(1) = 128
+    e_iFrameSColorB(1) = 128
+    e_iFrameSColorR(2) = 255
+    e_iFrameSColorG(2) = 192
+    e_iFrameSColorB(2) = 128
+    e_iFrameSColorR(3) = 255
+    e_iFrameSColorG(3) = 255
+    e_iFrameSColorB(3) = 128
+    e_iFrameSColorR(4) = 128
+    e_iFrameSColorG(4) = 255
+    e_iFrameSColorB(4) = 128
+    e_iFrameSColorR(5) = 128
+    e_iFrameSColorG(5) = 128
+    e_iFrameSColorB(5) = 255
+    e_iFrameSColorR(6) = 128
+    e_iFrameSColorG(6) = 128
+    e_iFrameSColorB(6) = 192
+    e_iFrameSColorR(7) = 255
+    e_iFrameSColorG(7) = 128
+    e_iFrameSColorB(7) = 255
+
+    e_strFrameEColor(0) = "빨"
+    e_strFrameEColor(1) = "주"
+    e_strFrameEColor(2) = "노"
+    e_strFrameEColor(3) = "초"
+    e_strFrameEColor(4) = "파"
+    e_strFrameEColor(5) = "남"
+    e_strFrameEColor(6) = "보"
+
+    e_iFrameEColorR(0) = 255
+    e_iFrameEColorG(0) = 128
+    e_iFrameEColorB(0) = 128
+    e_iFrameEColorR(1) = 255
+    e_iFrameEColorG(1) = 192
+    e_iFrameEColorB(1) = 128
+    e_iFrameEColorR(2) = 255
+    e_iFrameEColorG(2) = 255
+    e_iFrameEColorB(2) = 128
+    e_iFrameEColorR(3) = 128
+    e_iFrameEColorG(3) = 255
+    e_iFrameEColorB(3) = 128
+    e_iFrameEColorR(4) = 128
+    e_iFrameEColorG(4) = 128
+    e_iFrameEColorB(4) = 255
+    e_iFrameEColorR(5) = 128
+    e_iFrameEColorG(5) = 128
+    e_iFrameEColorB(5) = 192
+    e_iFrameEColorR(6) = 255
+    e_iFrameEColorG(6) = 128
+    e_iFrameEColorB(6) = 255
+
+    e_strLinkType(0) = "실선"
+    e_strLinkType(1) = "점선"
+    e_strLinkType(2) = "이점쇄선"
+
+    e_iLinkType(0) = 1
+    e_iLinkType(1) = 3
+    e_iLinkType(2) = 5
+
+    e_strLinkWidth(0) = "0.1㎜"
+    e_strLinkWidth(1) = "0.2㎜"
+    e_strLinkWidth(2) = "0.4㎜"
+    e_strLinkWidth(3) = "0.6㎜"
+    e_strLinkWidth(4) = "0.8㎜"
+    e_strLinkWidth(5) = "1㎜"
+    e_strLinkWidth(6) = "2㎜"
+    e_strLinkWidth(7) = "3㎜"
+    e_strLinkWidth(8) = "4㎜"
+    e_strLinkWidth(9) = "5㎜"
+
+    e_iLinkWidth(0) = CInt(MMToTwips(0.1))
+    e_iLinkWidth(1) = CInt(MMToTwips(0.2))
+    e_iLinkWidth(2) = CInt(MMToTwips(0.4))
+    e_iLinkWidth(3) = CInt(MMToTwips(0.6))
+    e_iLinkWidth(4) = CInt(MMToTwips(0.8))
+    e_iLinkWidth(5) = CInt(MMToTwips(1))
+    e_iLinkWidth(6) = CInt(MMToTwips(2))
+    e_iLinkWidth(7) = CInt(MMToTwips(3))
+    e_iLinkWidth(8) = CInt(MMToTwips(4))
+    e_iLinkWidth(9) = CInt(MMToTwips(5))
+
+    e_iLinkWidthPt(0) = CInt(TwipsToPt(CDbl(e_iLinkWidth(0))))
+    e_iLinkWidthPt(1) = CInt(TwipsToPt(CDbl(e_iLinkWidth(1))))
+    e_iLinkWidthPt(2) = CInt(TwipsToPt(CDbl(e_iLinkWidth(2))))
+    e_iLinkWidthPt(3) = CInt(TwipsToPt(CDbl(e_iLinkWidth(3))))
+    e_iLinkWidthPt(4) = CInt(TwipsToPt(CDbl(e_iLinkWidth(4))))
+    e_iLinkWidthPt(5) = CInt(TwipsToPt(CDbl(e_iLinkWidth(5))))
+    e_iLinkWidthPt(6) = CInt(TwipsToPt(CDbl(e_iLinkWidth(6))))
+    e_iLinkWidthPt(7) = CInt(TwipsToPt(CDbl(e_iLinkWidth(7))))
+    e_iLinkWidthPt(8) = CInt(TwipsToPt(CDbl(e_iLinkWidth(8))))
+    e_iLinkWidthPt(9) = CInt(TwipsToPt(CDbl(e_iLinkWidth(9))))
+
+    e_strLinkColor(0) = "빨"
+    e_strLinkColor(1) = "주"
+    e_strLinkColor(2) = "노"
+    e_strLinkColor(3) = "초"
+    e_strLinkColor(4) = "파"
+    e_strLinkColor(5) = "남"
+    e_strLinkColor(6) = "보"
+
+    e_iLinkColorR(0) = 255
+    e_iLinkColorG(0) = 0
+    e_iLinkColorB(0) = 0
+    e_iLinkColorR(1) = 255
+    e_iLinkColorG(1) = 128
+    e_iLinkColorB(1) = 0
+    e_iLinkColorR(2) = 255
+    e_iLinkColorG(2) = 255
+    e_iLinkColorB(2) = 0
+    e_iLinkColorR(3) = 0
+    e_iLinkColorG(3) = 255
+    e_iLinkColorB(3) = 0
+    e_iLinkColorR(4) = 0
+    e_iLinkColorG(4) = 0
+    e_iLinkColorB(4) = 255
+    e_iLinkColorR(5) = 0
+    e_iLinkColorG(5) = 0
+    e_iLinkColorB(5) = 128
+    e_iLinkColorR(6) = 255
+    e_iLinkColorG(6) = 0
+    e_iLinkColorB(6) = 255
+
+    SetEnumVar = 1
+
+End Function
+
+
+
+Function MyInstr(strSrc As String, strSub As String) As Integer
+
+    Dim iI
+
+    MyInstr = 0   
+    For iI = 1 To Len(strSrc) - Len(strSub) + 1
+        If Mid(strSrc, iI, Len(strSub)) = strSub Then
+            MyInstr = iI
+            Exit For
+        End If
+    Next iI
+
+End Function
+
+
+
+Function GetStringLineCount(strText As String) As Integer
+
+    Dim iL  As Integer
+    Dim iC  As Integer
+    Dim iI  As Integer
+
+    iL = 1
+    iC = Len(strText)
+
+    For iI = 1 To iC
+        If Mid(strText, iI, 1) = Chr(10) Then
+            iL = iL + 1
+        End If
+    Next iI
+
+    GetStringLineCount = iL
+
+End Function
+
+
+
+Function MakeListOrgItem(iIndex As Integer) As String
+
+    Dim strItem     As String
+    Dim strChar     As String
+    Dim iI          As Integer
+    Dim iJ          As Integer
+    Dim iLevel(MAX_NUM_DEPTH2)  As Integer
+
+    strItem = ""
+
+    If ListOrgContent(iIndex) = "" Then
+
+        For iI = 0 To ListOrgCount - 1
+            For iJ = ListOrgDepth(iI) + 1 To (MAX_NUM_DEPTH - 1)
+                If iLevel(iJ) = 0 Then
+                    Exit For
+                End If
+                iLevel(iJ) = 0
+            Next iJ
+            iLevel(ListOrgDepth(iI)) = iLevel(ListOrgDepth(iI)) + 1
+            If iI = iIndex Then
+                For iJ = 1 To (MAX_NUM_DEPTH - 1)
+                    If iLevel(iJ) = 0 Then
+                        Exit For
+                    End If
+                    If iJ = 1 Then
+                        strItem = strItem + " "
+                    Else
+                        strItem = strItem + "-"
+                    End If
+                    strItem = strItem + Str(iLevel(iJ))
+                Next iJ
+                Exit For
+            End If
+        Next iI
+
+        MakeListOrgItem = Space(ListOrgDepth(iIndex) * 2) + strItem
+'       MakeListOrgItem = Space(ListOrgDepth(iIndex) * 2) + LTrim(Str(iIndex))
+
+    Else
+
+        iC = Len(ListOrgContent(iIndex))
+
+        For iI = 1 To iC
+            strChar = Mid(ListOrgContent(iIndex), iI, 1)
+            If strChar = "@" Then
+                strChar = ""
+                iI = iI + 1
+            End If
+            If strChar = Chr(10) Or strChar = Chr(13) Then
+                Exit For ' end of line.
+            End If
+            strItem = strItem + strChar
+        Next iI
+
+        MakeListOrgItem = Space(ListOrgDepth(iIndex) * 2) + strItem
+
+    End If
+
+End Function
+
+
+
+Function InsertItem(iIndex, iDepth, strLabel$, strContent$)
+
+    Dim iListOrgID      As Integer
+    Dim iC              As Integer
+    Dim iI              As Integer
+'   Dim iJ              As Integer
+'   Dim iLevel(MAX_NUM_DEPTH - 1)      As Integer
+  ReDim ListOrgArray(0) As String
+
+    iListOrgID = DlgControlId("ListOrg")
+    iC         = DlgListBoxArray(iListOrgID)
+
+    If iIndex < 0 Or iIndex > iC Then
+        Goto Exit_InsertItem
+    End If
+    If iIndex >= MAX_NUM_ITEM Then
+        Goto Exit_InsertItem
+    End If
+
+    If iIndex < iC Then 'Append가 아니면...
+        For iI = iC - 1 To iIndex Step -1
+            ListOrgDepth(iI + 1)   = ListOrgDepth(iI)
+            ListOrgSize(iI + 1)    = ListOrgSize(iI)
+            ListOrgContent(iI + 1) = ListOrgContent(iI)
+        Next iI
+    End If
+
+    ListOrgDepth(iIndex)   = iDepth
+'   ListOrgSize(iIndex)    = strLabel$
+    ListOrgSize(iIndex)    = 0 '새 아이템의 FrameSize는 e_iFrameSize(0)이다.
+    ListOrgContent(iIndex) = strContent$
+
+    ListOrgCount = iC + 1
+
+    ReDim ListOrgArray(iC)
+
+    For iI = 0 To iC
+'       For iJ = ListOrgDepth(iI) + 1 To (MAX_NUM_DEPTH - 1)
+'           If iLevel(iJ) = 0 Then
+'               Exit For
+'           End If
+'           iLevel(iJ) = 0
+'       Next iJ
+'       iLevel(ListOrgDepth(iI)) = iLevel(ListOrgDepth(iI)) + 1
+'       If iI = iIndex Then
+'           For iJ = 1 To (MAX_NUM_DEPTH - 1)
+'               If iLevel(iJ) = 0 Then
+'                   Exit For
+'               End If
+'               If iJ = 1 Then
+'                   ListOrgSize(iI) = ListOrgSize(iI) + " "
+'               Else
+'                   ListOrgSize(iI) = ListOrgSize(iI) + "-"
+'               End If
+'               ListOrgSize(iI) = ListOrgSize(iI) + Str(iLevel(iJ))
+'           Next iJ
+'       End If
+'       ListOrgArray(iI) = Space(ListOrgDepth(iI) * 2) + ListOrgSize(iI)
+        ListOrgArray(iI) = MakeListOrgItem(iI)
+    Next iI
+
+    DlgListBoxArray iListOrgID, ListOrgArray
+
+Exit_InsertItem:
+
+    InsertItem = ListOrgCount
+
+End Function
+
+Function DeleteItem(iIndex)
+
+    Dim iListOrgID      As Integer
+    Dim iC              As Integer
+    Dim iI              As Integer
+  ReDim ListOrgArray(0) As String
+
+    iListOrgID = DlgControlId("ListOrg")
+    iC         = DlgListBoxArray(iListOrgID)
+
+    If iIndex < 0 Or iIndex >= iC Then
+        Goto Exit_DeleteItem
+    End If
+
+    If iIndex < iC - 1 Then '마지막 아이템이 아니면...
+        For iI = iIndex To iC - 2
+            ListOrgDepth(iI)   = ListOrgDepth(iI + 1)
+            ListOrgSize(iI)    = ListOrgSize(iI + 1)
+            ListOrgContent(iI) = ListOrgContent(iI + 1)
+        Next iI
+    End If
+
+    ListOrgCount = iC - 1
+
+    If iC < 2 Then '아이템이 하나라면 리스트박스를 refresh 못한다.
+        Goto Exit_DeleteItem
+    End If
+
+    ReDim ListOrgArray(iC - 2)
+
+    For iI = 0 To iC - 2
+'       ListOrgArray(iI) = Space(ListOrgDepth(iI) * 2) + ListOrgSize(iI)
+        ListOrgArray(iI) = MakeListOrgItem(iI)
+    Next iI
+
+    DlgListBoxArray iListOrgID, ListOrgArray
+
+Exit_DeleteItem:
+
+    If ListOrgSelect >= ListOrgCount Then
+        ListOrgSelect = ListOrgCount - 1
+    End If
+    DeleteItem = ListOrgCount
+
+End Function
+
+Function RecurseMove(iI, iD)
+
+    Dim iJ  As Integer
+    Dim dmy As Integer
+
+    If ListOrgOwn(iI, 0) > 0 Then
+        For iJ = 1 To ListOrgOwn(iI, 0)
+            dmy = RecurseMove(ListOrgOwn(iI, iJ), iD)
+        Next iJ
+    End If
+
+    ListOrgPos(iI) = ListOrgPos(iI) + iD
+    If ListOrgPrg(ListOrgDepth(iI)) < ListOrgPos(iI) + AreaX Then
+        ListOrgPrg(ListOrgDepth(iI)) = ListOrgPos(iI) + AreaX
+    End If
+
+    RecurseMove = 1
+
+End Function
+
+Function RecurseDraw(iI)
+
+    Dim iJ  As Integer
+    Dim dmy As Integer
+
+    If ListOrgOwn(iI, 0) > 0 Then
+
+    For iJ = 1 To ListOrgOwn(iI, 0)
+        dmy = RecurseDraw(ListOrgOwn(iI, iJ))
+    Next iJ
+
+    ListOrgPos(iI) = (ListOrgPos(ListOrgOwn(iI, 1)) + ListOrgPos(ListOrgOwn(iI, ListOrgOwn(iI, 0)))) / 2
+
+    If ListOrgPos(iI) < ListOrgPrg(ListOrgDepth(iI)) Then
+        dmy = RecurseMove(iI, ListOrgPrg(ListOrgDepth(iI)) - ListOrgPos(iI))
+    End If
+
+    Else
+
+
+    ListOrgPos(iI) = ListOrgPrg(ListOrgDepth(iI))
+
+    End If
+
+    If ListOrgPrg(ListOrgDepth(iI)) < ListOrgPos(iI) + AreaX Then
+        ListOrgPrg(ListOrgDepth(iI)) = ListOrgPos(iI) + AreaX
+    End If
+
+    RecurseDraw = 1
+
+End Function
+
+Function BeInSameParent(iI1 As Integer, iI2 As Integer) As Integer
+
+    Dim iResult As Integer
+    Dim iJ      As Integer
+    Dim iK      As Integer
+    Dim iL      As Integer
+
+    iResult = 0
+    For iJ = 0 To ListOrgCount - 1
+        For iK = 1 To ListOrgOwn(iJ, 0)
+            If ListOrgOwn(iJ, iK) = iI1 Then
+                For iL = 1 To ListOrgOwn(iJ, 0)
+                    If ListOrgOwn(iJ, iL) = iI2 Then
+                        iResult = 1
+                    End If
+                Next iL
+                Goto Exit_BeInSameParent
+            End If
+        Next iK
+    Next iJ
+
+Exit_BeInSameParent:
+
+    BeInSameParent = iResult
+
+End Function
+
+
+
+Sub DrawOrg
+
+    Dim iLoop           As Integer
+    Dim xMaxPrg         As Long
+    Dim dRate           As Double
+
+    Dim strContent      As String
+    Dim iHeight         As Integer
+    Dim iHeightSum      As Integer
+
+    Dim FrmTitle        As Integer
+    Dim iFrame          As Integer
+    Dim iFind           As Integer
+'   Dim xLinker1        As Long
+'   Dim yLinker1        As Long
+'   Dim xLinker2        As Long
+'   Dim yLinker2        As Long
+
+    Dim iI              As Integer
+    Dim iJ              As Integer
+    Dim iK              As Integer
+
+'타이틀
+    If s_EnableTitle = 1 Then
+        FrmTitle = Hun70.TextFrame(-1, g_sxTitle, g_syTitle, g_exTitle, g_eyTitle, 0, 0)
+        dmy = Hun70.SelectFrame(-1, FrmTitle, 0)
+        dmy = Hun70.VerticalAlignCentre(-1)
+        dmy = Hun70.ParaAlignCentre(-1)
+        s_strParam = e_strTitleFont(s_TitleFont)
+        dmy = Hun70.Font(-1, s_strParam, 0)
+        dmy = Hun70.FontSize(-1, e_iTitleSize(s_TitleSize))
+        dmy = Hun70.Bold(-1, 1)
+'       dmy = Hun70.Italic(-1, 1)
+        dmy = Hun70.Shade(-1, 2)
+        dmy = Hun70.MoveCaret(-1, FrmTitle, 1, 1)
+        dmy = Hun70.TextForeColour(-1, e_iTitleColorR(s_TitleColor), e_iTitleColorG(s_TitleColor), e_iTitleColorB(s_TitleColor))
+        dmy = Hun70.InsertString(-1, s_TitleText)
+    End If
+
+'로고
+'   dmy = Hun70.Image(-1, 0, g_CurDir + "Slogo_k.gif", g_sxLogo, g_syLogo, g_exLogo, g_eyLogo)
+
+'초기화
+    For iI = 0 To MAX_NUM_DEPTH
+        For iJ = 0 To MAX_NUM_CHILD
+            ListOrgOwn(iI, iJ) = 0
+        Next iJ
+        ListOrgMaxHeight(iI) = 0
+    Next iI
+
+'자식 구하기
+    For iI = 0 To ListOrgCount - 1
+        For iJ = iI + 1 To ListOrgCount - 1
+            If ListOrgDepth(iJ) = ListOrgDepth(iI) + 1 Then
+                ListOrgOwn(iI, 0) = ListOrgOwn(iI, 0) + 1
+                ListOrgOwn(iI, ListOrgOwn(iI, 0)) = iJ
+            Else
+                If ListOrgDepth(iJ) <= ListOrgDepth(iI) Then
+                    Exit For
+                End If
+            End If
+        Next iJ
+    Next iI
+
+'최대 깊이 계산 / 그 깊이에서 최대 높이 계산.
+    ListOrgMaxDepth = 0
+    For iI = 0 To ListOrgCount - 1
+
+        If ListOrgSizeEnable(iI) = 1 Then
+            iHeight = e_iFrameSize(ListOrgSize(iI))
+        Else
+            '다시 계산한다.
+            strContent = ListOrgContent(iI)
+            iHeight = 1
+            For iJ = 1 To Len(strContent)
+                If Mid(strContent, iJ, 1) = Chr(10) Then
+                    iHeight = iHeight + 1
+                End If
+            Next iJ
+        End If
+        If iHeight > ListOrgMaxHeight(ListOrgDepth(iI)) Then
+            ListOrgMaxHeight(ListOrgDepth(iI)) = iHeight
+        End If
+
+        If ListOrgDepth(iI) > ListOrgMaxDepth Then
+            ListOrgMaxDepth = ListOrgDepth(iI)
+        End If
+
+    Next iI
+
+'   축소시키려면...
+'   g_wdOrgBrd = g_wdOrgBrd / 3
+'   g_hgOrgBrd = g_hgOrgBrd / 3
+
+'프레임 위치 계산
+    '초기크기 계산
+    If ListOrgCount > 1 Then
+        AreaX = g_wdOrgBrd   / (ListOrgCount - 1)
+    Else
+        AreaX = g_wdOrgBrd
+    End If
+    BoxX  = AreaX * 0.8  'Box Margin
+    GapX  = AreaX - BoxX
+    If ListOrgCount > 1 Then
+        AreaX = AreaX + GapX / (ListOrgCount - 1)
+    Else
+        AreaX = AreaX + GapX
+    End If
+    If ListOrgCount > 1 Then
+        BoxX  = BoxX  + GapX / (ListOrgCount - 1)
+    Else
+        BoxX  = BoxX  + GapX
+    End If
+    GapX  = AreaX - BoxX
+
+    AreaY = g_hgOrgBrd   / (ListOrgMaxDepth + 1)
+    BoxY  = AreaY * 0.4  'Box Margin
+    GapY  = AreaY - BoxY
+    AreaY = AreaY + GapY / (ListOrgMaxDepth + 1)
+    BoxY  = BoxY  + GapY / (ListOrgMaxDepth + 1)
+    GapY  = AreaY - BoxY
+
+    For iLoop = 1 To 2
+        '초기화
+        For iI = 0 To MAX_NUM_ITEM
+            ListOrgPos(iI) = 0   'Item  Index
+            ListOrgPrg(iI) = 0   'Depth Index
+        Next iI
+
+        dmy = RecurseDraw(0)
+
+        '최대 너비 계산
+        xMaxPrg = 0
+        For iI = 0 To ListOrgMaxDepth
+            If ListOrgPrg(iI) > xMaxPrg Then
+                xMaxPrg = ListOrgPrg(iI)
+            End If
+        Next iI
+        xMaxPrg = xMaxPrg - GapX
+
+        '프레임 크기 재계산
+        dRate = g_wdOrgBrd / xMaxPrg
+        AreaX = AreaX * dRate
+        BoxX  = BoxX  * dRate
+        GapX  = AreaX - BoxX
+
+    Next iLoop
+
+    '높이 합계 계산.
+    iHeightSum = 0
+    For iI = 0 To ListOrgMaxDepth
+        iHeightSum = iHeightSum + ListOrgMaxHeight(iI)
+    Next iI
+    StartY2(0) = g_syOrgBrd
+    BoxY2(0)   = BoxY  + g_ShareY / iHeightSum * ListOrgMaxHeight(0)
+    For iI = 1 To ListOrgMaxDepth
+        StartY2(iI) = StartY2(iI - 1) + BoxY2(iI - 1) + GapY
+        BoxY2(iI)  = BoxY  + g_ShareY / iHeightSum * ListOrgMaxHeight(iI)
+    Next iI
+
+'실제 위치 계산
+    For iI = 0 To ListOrgCount - 1
+        ListOrgPos(iI) = ListOrgPos(iI) + g_sxOrgBrd
+    Next iI
+
+'프레임과 텍스트
+    For iI = 0 To ListOrgCount - 1
+
+        iJ = ListOrgDepth(iI)
+        ListOrgFrame(iI) = Hun70.TextFrame(-1, ListOrgPos(iI), StartY2(iJ), ListOrgPos(iI) + BoxX, StartY2(iJ) + BoxY2(iJ), 0, 0)
+
+        If ListOrgContent(iI) <> "" Then
+            dmy = Hun70.TextMode(-1)
+            dmy = Hun70.MoveCaret(-1, ListOrgFrame(iI), 1, 1)
+            strContent = ListOrgContent(iI)
+            iK = MyInstr(strContent, "@")
+            While MyInstr(strContent, "@") > 0
+                iJ = MyInstr(strContent, "@")
+                If Left(strContent, iJ - 1) <> "" Then
+                    dmy = Hun70.InsertString(-1, Left(strContent, iJ - 1))
+                End If
+                Select Case Mid(strContent, iJ , 2)
+                    Case "@R"
+                        dmy = Hun70.TextForeColour(-1, 192, 0, 0)
+                        dmy = Hun70.Bold(-1, 1)
+                    Case "@G"
+                        dmy = Hun70.TextForeColour(-1, 0, 192, 0)
+                        dmy = Hun70.Bold(-1, 1)
+                    Case "@B"
+                        dmy = Hun70.TextForeColour(-1, 0, 0, 192)
+                        dmy = Hun70.Bold(-1, 1)
+                    Case "@N"
+                        dmy = Hun70.TextForeColour(-1, 0, 0, 0)
+                        dmy = Hun70.Bold(-1, 0)
+                End Select
+                strContent = Mid(strContent, iJ + 2)
+                iK = MyInstr(strContent, "@")
+            WEnd
+            If strContent <> "" Then
+                dmy = Hun70.InsertString(-1, strContent)
+            End If
+        End If
+
+    Next iI
+
+'프레임 속성
+    dmy = Hun70.SelectFrame(-1, ListOrgFrame(0), 0)
+    For iI = 1 To ListOrgCount - 1
+        dmy = Hun70.SelectFrame(-1, ListOrgFrame(iI), 1)
+    Next iI
+'   If e_iFrameSColorR(s_FrameSColor) = -1 And e_iFrameSColorG(s_FrameSColor) = -1 And e_iFrameSColorB(s_FrameSColor) = -1 Then
+    If s_Transparent = 1 Then
+        dmy = Hun70.FrameBorderType(-1, 1)
+        dmy = Hun70.FrameBorderFillType(-1, 0)
+    Else
+        If s_FrameShade = 0 Or s_Transparent = 1 Then
+            If s_FrameType = 0 Then
+                dmy = Hun70.FrameBorderType(-1, 1)
+            Else
+                dmy = Hun70.FrameBorderType(-1, 30)
+            End If
+        Else
+            dmy = Hun70.FrameBorderType(-1, e_iFrameType(s_FrameType))
+        End If
+        If s_FrameGradient = 1 Then
+            dmy = Hun70.FrameBorderFillType(-1, 23)
+        Else
+            dmy = Hun70.FrameBorderFillType(-1, 1)
+        End If
+    End If
+    dmy = Hun70.FrameBorderLineType(-1, 1)
+    dmy = Hun70.FrameBorderFillPattern(-1, 2)
+    dmy = Hun70.FrameBorderFillColour(-1, e_iFrameSColorR(s_FrameSColor), e_iFrameSColorG(s_FrameSColor), e_iFrameSColorB(s_FrameSColor))
+    If s_FrameGradient = 1 Then
+        dmy = Hun70.FrameGradientEndColour(-1, e_iFrameEColorR(s_FrameEColor), e_iFrameEColorG(s_FrameEColor), e_iFrameEColorB(s_FrameEColor))
+'       dmy = Hun70.FrameGradientSlope(-1, 45)
+'       dmy = Hun70.FrameGradientAxis(-1, 50, 50)
+    End If
+    If s_FrameShade = 1 And s_Transparent = 0 Then
+        dmy = Hun70.FrameShadeSize(-1, 50, 50)
+        dmy = Hun70.FrameShadePattern(-1, 2)
+        dmy = Hun70.FrameShadeColour(-1, 128, 128, 128)
+    End If
+    dmy = Hun70.VerticalAlignCentre(-1)
+    dmy = Hun70.ParaAlignCentre(-1)
+    dmy = Hun70.Font(-1, "굴림", 0)
+    dmy = Hun70.FontSize(-1, CLng(PtToTwips(CDbl(12))))
+'   dmy = Hun70.TextFrameAutoSize(-1, 0)
+
+'조직 연결
+    If s_EnableLink = 1 Then
+        For iI = 0 To ListOrgCount - 1
+            iFind = 0
+
+            'iI의 부모 아이템을 찾는다
+            For iJ = 0 To ListOrgCount - 1
+
+                'iJ의 자식 아이템을 조사한다
+                For iK = 1 To ListOrgOwn(iJ, 0)
+
+                    'iJ는 부모, iI는 자식
+                    If ListOrgOwn(iJ, iK) = iI Then
+
+                        '링커를 이용하는 경우
+                        dmy = Hun70.SelectFrame(-1, ListOrgFrame(iJ), 0)
+                        dmy = Hun70.SelectFrame(-1, ListOrgFrame(iI), 1)
+                        iFrame = Hun70.LinkFrames(-1, 3, 1)
+                        dmy = Hun70.SelectFrame(-1, iFrame, 0)
+                        dmy = Hun70.FrameBorderLineType(-1, e_iLinkType(s_LinkType))
+                        dmy = Hun70.FrameBorderLineWidth(-1, e_iLinkWidth(s_LinkWidth))
+                        dmy = Hun70.FrameBorderLineColour(-1, e_iLinkColorR(s_LinkColor), e_iLinkColorG(s_LinkColor), e_iLinkColorB(s_LinkColor))
+
+                        '라인을 이용하는 경우
+'                       xLinker1 = ListOrgPos(iJ) + BoxX / 2
+'                       yLinker1 = g_syOrgBrd + ListOrgDepth(iJ) * AreaY + BoxY
+'                       xLinker2 = ListOrgPos(iI) + BoxX / 2
+'                       yLinker2 = g_syOrgBrd + ListOrgDepth(iI) * AreaY
+'                       dmy = Hun70.Line(-1, xLinker1, yLinker1, xLinker1, (yLinker1 + yLinker2) / 2)
+'                       dmy = Hun70.Line(-1, xLinker2, yLinker2, xLinker2, (yLinker1 + yLinker2) / 2)
+'                       dmy = Hun70.Line(-1, xLinker1, (yLinker1 + yLinker2) / 2, xLinker2, (yLinker1 + yLinker2) / 2)
+
+                        iFind = 1
+                        '다음 아이템으로
+                        Exit For   'To If iFind = 1 Then
+                    End If
+
+                Next iK
+
+                If iFind = 1 Then
+                    '다음 아이템으로
+                    Exit For   'To Next iI
+                End If
+
+            Next iJ
+
+        Next iI
+    End If
+
+    dmy = Hun70.ArrowMode(-1)
+
+End Sub
+
+
+
+Function MultiLineToSingleLine(strSource As String) As String
+
+    Dim iC          As Integer
+    Dim strTarget   As String
+    Dim iI          As Integer
+    Dim strChar     As String
+
+    iC        = Len(strSource)
+    strTarget = ""
+
+    For iI = 1 To iC
+        strChar = Mid(strSource, iI, 1)
+        If strChar = Chr(10) Then
+            strChar = "\r"
+        End If
+        If strChar = Chr(13) Then
+            strChar = "\n"
+        End If
+        strTarget = strTarget + strChar
+    Next iI
+
+    MultiLineToSingleLine = strTarget
+
+End Function
+
+Function SingleLineToMultiLine(strSource As String) As String
+
+    Dim iC          As Integer
+    Dim strTarget   As String
+    Dim iI          As Integer
+    Dim strChar     As String
+
+    iC        = Len(strSource)
+    strTarget = ""
+
+    For iI = 1 To iC
+        strChar = Mid(strSource, iI, 1)
+        If strChar = "\" And iI < iC Then
+            iI = iI + 1
+            strChar = Mid(strSource, iI, 1)
+            If strChar = "r" Then
+                strChar = Chr(10)
+            End If
+            If strChar = "n" Then
+                strChar = Chr(13)
+            End If
+        End If
+        strTarget = strTarget + strChar
+    Next iI
+
+    SingleLineToMultiLine = strTarget
+
+End Function
+
+
+
+Function OpenStyleFile(iFileNumber As Integer, iHeaderCheck As Integer, strStyleFilePath As String) As Integer
+
+    Dim iResult     As Integer
+    Dim strError    As String
+    Dim bIOpen      As Integer
+    Dim strBuffer   As String
+    Dim iDepth      As Integer
+    Dim strItem     As String
+    Dim strValue    As String
+
+	On Local Error Goto Fail_OpenStyleFile
+
+    iResult = 1
+
+    If iFileNumber = 0 Then
+        If strStyleFilePath = "" Then
+            strStyleFilePath = g_FileExt.FileDialog(1, "*.oty", "", "Organization style Files (*.oty)|*.oty|All Files (*.*)|*.*||")
+        End If
+        If strStyleFilePath = "" Then
+            Goto Fail_OpenStyleFile
+        End If
+        If Dir(strStyleFilePath) = "" Then
+            strError = "파일을 찾을 수 없습니다."
+            Goto Fail_OpenStyleFile
+        End If
+
+        iFileNumber = 1
+        Open strStyleFilePath For Input As #iFileNumber
+
+        bIOpen = 1
+    Else
+        bIOpen = 0
+    End If
+
+    If iHeaderCheck = 1 Then
+
+        Line Input #iFileNumber, strBuffer '"Owner=Hun70 Organization"
+            GetItemAndValue strBuffer, iDepth, strItem, strValue
+            If iDepth > 0 Or strItem <> "Owner" Or strValue <> "Hun70 Organization" Then
+                strError = "포멧에러 : Owner"
+                Goto Fail_OpenStyleFile
+            End If
+
+        Line Input #iFileNumber, strBuffer '"Description=" + strStyleFilePath
+            GetItemAndValue strBuffer, iDepth, strItem, strValue
+            If iDepth > 0 Or strItem <> "Description" Then
+                strError = "포멧에러 : Description"
+                Goto Fail_OpenStyleFile
+            End If
+
+        Line Input #iFileNumber, strBuffer 'Header Separator
+            If strBuffer <> "" Then
+                strError = "포멧에러 : Header Separator"
+                Goto Fail_OpenStyleFile
+            End If
+
+    End If
+
+    Line Input #iFileNumber, strBuffer
+        GetItemAndValue strBuffer, iDepth, strItem, strValue
+        If iDepth > 0 Or strItem <> "EnableTitle" Then
+            strError = "포멧에러 : EnableTitle"
+            Goto Fail_OpenStyleFile
+        End If
+        s_EnableTitle = Val(strValue)
+
+    Line Input #iFileNumber, strBuffer
+        GetItemAndValue strBuffer, iDepth, strItem, strValue
+        If iDepth > 0 Or strItem <> "TitleText" Then
+            strError = "포멧에러 : TitleText"
+            Goto Fail_OpenStyleFile
+        End If
+        s_TitleText = strValue
+
+    Line Input #iFileNumber, strBuffer
+        GetItemAndValue strBuffer, iDepth, strItem, strValue
+        If iDepth > 0 Or strItem <> "TitleFont" Then
+            strError = "포멧에러 : TitleFont"
+            Goto Fail_OpenStyleFile
+        End If
+        s_TitleFont = Val(strValue)
+
+    Line Input #iFileNumber, strBuffer
+        GetItemAndValue strBuffer, iDepth, strItem, strValue
+        If iDepth > 0 Or strItem <> "TitleSize" Then
+            strError = "포멧에러 : TitleSize"
+            Goto Fail_OpenStyleFile
+        End If
+        s_TitleSize = Val(strValue)
+
+    Line Input #iFileNumber, strBuffer
+        GetItemAndValue strBuffer, iDepth, strItem, strValue
+        If iDepth > 0 Or strItem <> "TitleColor" Then
+            strError = "포멧에러 : TitleColor"
+            Goto Fail_OpenStyleFile
+        End If
+        s_TitleColor = 1
+        e_iTitleColorR(s_TitleColor) = Val(Mid(strValue, 1, 3))
+        e_iTitleColorG(s_TitleColor) = Val(Mid(strValue, 4, 3))
+        e_iTitleColorB(s_TitleColor) = Val(Mid(strValue, 7, 3))
+
+    Line Input #iFileNumber, strBuffer
+        GetItemAndValue strBuffer, iDepth, strItem, strValue
+        If iDepth > 0 Or strItem <> "FrameType" Then
+            strError = "포멧에러 : FrameType"
+            Goto Fail_OpenStyleFile
+        End If
+        s_FrameType = Val(strValue)
+
+    Line Input #iFileNumber, strBuffer
+        GetItemAndValue strBuffer, iDepth, strItem, strValue
+        If iDepth > 0 Or strItem <> "Transparent" Then
+            strError = "포멧에러 : Transparent"
+            Goto Fail_OpenStyleFile
+        End If
+        s_Transparent = Val(strValue)
+
+    Line Input #iFileNumber, strBuffer
+        GetItemAndValue strBuffer, iDepth, strItem, strValue
+        If iDepth > 0 Or strItem <> "FrameSColor" Then
+            strError = "포멧에러 : FrameSColor"
+            Goto Fail_OpenStyleFile
+        End If
+        s_FrameSColor = 1
+        e_iFrameSColorR(s_FrameSColor) = Val(Mid(strValue, 1, 3))
+        e_iFrameSColorG(s_FrameSColor) = Val(Mid(strValue, 4, 3))
+        e_iFrameSColorB(s_FrameSColor) = Val(Mid(strValue, 7, 3))
+
+    Line Input #iFileNumber, strBuffer
+        GetItemAndValue strBuffer, iDepth, strItem, strValue
+        If iDepth > 0 Or strItem <> "FrameEColor" Then
+            strError = "포멧에러 : FrameEColor"
+            Goto Fail_OpenStyleFile
+        End If
+        s_FrameEColor = 1
+        e_iFrameEColorR(s_FrameEColor) = Val(Mid(strValue, 1, 3))
+        e_iFrameEColorG(s_FrameEColor) = Val(Mid(strValue, 4, 3))
+        e_iFrameEColorB(s_FrameEColor) = Val(Mid(strValue, 7, 3))
+
+    Line Input #iFileNumber, strBuffer
+        GetItemAndValue strBuffer, iDepth, strItem, strValue
+        If iDepth > 0 Or strItem <> "FrameGradient" Then
+            strError = "포멧에러 : FrameGradient"
+            Goto Fail_OpenStyleFile
+        End If
+        s_FrameGradient = Val(strValue)
+
+    Line Input #iFileNumber, strBuffer
+        GetItemAndValue strBuffer, iDepth, strItem, strValue
+        If iDepth > 0 Or strItem <> "FrameShade" Then
+            strError = "포멧에러 : FrameShade"
+            Goto Fail_OpenStyleFile
+        End If
+        s_FrameShade = Val(strValue)
+
+    Line Input #iFileNumber, strBuffer
+        GetItemAndValue strBuffer, iDepth, strItem, strValue
+        If iDepth > 0 Or strItem <> "EnableLink" Then
+            strError = "포멧에러 : EnableLink"
+            Goto Fail_OpenStyleFile
+        End If
+        s_EnableLink = Val(strValue)
+
+    Line Input #iFileNumber, strBuffer
+        GetItemAndValue strBuffer, iDepth, strItem, strValue
+        If iDepth > 0 Or strItem <> "LinkType" Then
+            strError = "포멧에러 : LinkType"
+            Goto Fail_OpenStyleFile
+        End If
+        s_LinkType = Val(strValue)
+
+    Line Input #iFileNumber, strBuffer
+        GetItemAndValue strBuffer, iDepth, strItem, strValue
+        If iDepth > 0 Or strItem <> "LinkWidth" Then
+            strError = "포멧에러 : LinkWidth"
+            Goto Fail_OpenStyleFile
+        End If
+        s_LinkWidth = Val(strValue)
+
+    Line Input #iFileNumber, strBuffer
+        GetItemAndValue strBuffer, iDepth, strItem, strValue
+        If iDepth > 0 Or strItem <> "LinkColor" Then
+            strError = "포멧에러 : LinkColor"
+            Goto Fail_OpenStyleFile
+        End If
+        s_LinkColor = 1
+        e_iLinkColorR(s_LinkColor) = Val(Mid(strValue, 1, 3))
+        e_iLinkColorG(s_LinkColor) = Val(Mid(strValue, 4, 3))
+        e_iLinkColorB(s_LinkColor) = Val(Mid(strValue, 7, 3))
+
+    If bIOpen = 1 Then
+        s_StyleFile = strStyleFilePath
+    End If
+    Goto Exit_OpenStyleFile
+
+Fail_OpenStyleFile:
+
+    If strError <> "" Then
+        MsgBox strError, 16, "조직도 만들기"
+    End If
+
+    iResult = 0
+
+Exit_OpenStyleFile:
+
+    If iFileNumber <> 0 And bIOpen = 1 Then
+        Close #iFileNumber
+    End If
+
+    OpenStyleFile = iResult
+
+End Function
+
+Function SaveStyleFile(iFileNumber As Integer, iHeaderWrite As Integer, strStyleFilePath As String) As Integer
+
+    Dim iResult     As Integer
+    Dim strError    As String
+    Dim bIOpen      As Integer
+
+	On Local Error Goto Fail_SaveStyleFile
+
+    iResult = 1
+
+    If iFileNumber = 0 Then
+        If strStyleFilePath = "" Then
+            strStyleFilePath = g_FileExt.FileDialog(0, "*.oty", "", "Organization style Files (*.oty)|*.oty|All Files (*.*)|*.*||")
+        End If
+        If strStyleFilePath = "" Then
+            strError = ""
+            Goto Fail_SaveStyleFile
+        End If
+
+        iFileNumber = 1
+        Open strStyleFilePath For Output As #iFileNumber
+
+        bIOpen = 1
+    Else
+        bIOpen = 0
+    End If
+
+    If iHeaderWrite = 1 Then
+
+        Print #iFileNumber, "Owner=Hun70 Organization"
+        Print #iFileNumber, "Description=" + strStyleFilePath
+        Print #iFileNumber, "" 'Header Separator
+
+    End If
+
+'   Print #iFileNumber, "Owner=Hun70 Organization"
+'   Print #iFileNumber, "Description=" + strStyleFilePath
+'   Print #iFileNumber, "" 'Header Separator
+
+    Print #iFileNumber, "EnableTitle="   + LTrim(Str(s_EnableTitle))
+    Print #iFileNumber, "TitleText="     + s_TitleText
+    Print #iFileNumber, "TitleFont="     + LTrim(Str(s_TitleFont))
+    Print #iFileNumber, "TitleSize="     + LTrim(Str(s_TitleSize))
+
+'   Print #iFileNumber, "TitleColor="    + LTrim(Str(s_TitleColor))
+	If e_iTitleColorR(s_TitleColor) = -1 And e_iTitleColorG(s_TitleColor) = -1 And e_iTitleColorB(s_TitleColor) = -1 Then
+		Print #iFileNumber, "TitleColor=-01-01-01"
+	Else
+		Print #iFileNumber, "TitleColor="    + Right("000" + LTrim(Str(e_iTitleColorR(s_TitleColor))), 3) + Right("000" + LTrim(Str(e_iTitleColorG(s_TitleColor))), 3) + Right("000" + LTrim(Str(e_iTitleColorB(s_TitleColor))), 3)
+	End If
+
+    Print #iFileNumber, "FrameType="     + LTrim(Str(s_FrameType))
+    Print #iFileNumber, "Transparent="   + LTrim(Str(s_Transparent))
+
+'   Print #iFileNumber, "FrameSColor="   + LTrim(Str(s_FrameSColor))
+	If e_iFrameSColorR(s_FrameSColor) = -1 And e_iFrameSColorG(s_FrameSColor) = -1 And e_iFrameSColorB(s_FrameSColor) = -1 Then
+	    Print #iFileNumber, "FrameSColor=-01-01-01"
+	Else
+	    Print #iFileNumber, "FrameSColor="   + Right("000" + LTrim(Str(e_iFrameSColorR(s_FrameSColor))), 3) + Right("000" + LTrim(Str(e_iFrameSColorG(s_FrameSColor))), 3) + Right("000" + LTrim(Str(e_iFrameSColorB(s_FrameSColor))), 3)
+	End If
+'   Print #iFileNumber, "FrameEColor="   + LTrim(Str(s_FrameEColor))
+	If e_iFrameEColorR(s_FrameEColor) = -1 And e_iFrameEColorG(s_FrameEColor) = -1 And e_iFrameEColorB(s_FrameEColor) = -1 Then
+		Print #iFileNumber, "FrameEColor=-01-01-01"
+	Else
+		Print #iFileNumber, "FrameEColor="   + Right("000" + LTrim(Str(e_iFrameEColorR(s_FrameEColor))), 3) + Right("000" + LTrim(Str(e_iFrameEColorG(s_FrameEColor))), 3) + Right("000" + LTrim(Str(e_iFrameEColorB(s_FrameEColor))), 3)
+	End If
+
+    Print #iFileNumber, "FrameGradient=" + LTrim(Str(s_FrameGradient))
+    Print #iFileNumber, "FrameShade="    + LTrim(Str(s_FrameShade))
+    Print #iFileNumber, "EnableLink="    + LTrim(Str(s_EnableLink))
+    Print #iFileNumber, "LinkType="      + LTrim(Str(s_LinkType))
+    Print #iFileNumber, "LinkWidth="     + LTrim(Str(s_LinkWidth))
+
+'   Print #iFileNumber, "LinkColor="     + LTrim(Str(s_LinkColor))
+	If e_iLinkColorR(s_LinkColor) = -1 And e_iLinkColorG(s_LinkColor) = -1 And e_iLinkColorB(s_LinkColor) = -1 Then
+		Print #iFileNumber, "LinkColor=-01-01-01"
+	Else
+		Print #iFileNumber, "LinkColor="     + Right("000" + LTrim(Str(e_iLinkColorR(s_LinkColor))), 3) + Right("000" + LTrim(Str(e_iLinkColorG(s_LinkColor))), 3) + Right("000" + LTrim(Str(e_iLinkColorB(s_LinkColor))), 3)
+	End If
+
+    If bIOpen = 1 Then
+        s_StyleFile = strStyleFilePath
+    End If
+    Goto Exit_SaveStyleFile
+
+Fail_SaveStyleFile:
+
+    If strError <> "" Then
+        MsgBox strError, 16, "조직도 만들기"
+    End If
+
+    iResult = 0
+
+Exit_SaveStyleFile:
+
+    If iFileNumber <> 0 And bIOpen = 1 Then
+        Close #iFileNumber
+    End If
+
+    SaveStyleFile = iResult
+
+End Function
+
+
+
+Function OpenOrgFile(strOrgFilePath As String) As Integer
+
+    Dim iResult         As Integer
+    Dim strError        As String
+    Dim iFileNumber     As Integer
+    Dim strBuffer       As String
+    Dim iI              As Integer
+'   Dim iJ              As Integer
+
+	On Local Error Goto Fail_OpenOrgFile
+
+    iResult     = 1
+    iFileNumber = 0
+
+    If strOrgFilePath = "" Then
+        strOrgFilePath = g_FileExt.FileDialog(1, "*.org", "", "Organization Files (*.org)|*.org|All Files (*.*)|*.*||")
+    End If
+
+    If strOrgFilePath = "" Then
+        strError = ""
+        Goto Fail_OpenOrgFile
+    End If
+    If Dir(strOrgFilePath) = "" Then
+        strError = "파일을 찾을 수 없습니다."
+        Goto Fail_OpenOrgFile
+    End If
+
+    iFileNumber = 1
+    Open strOrgFilePath For Input As #iFileNumber
+
+    If OpenStyleFile(iFileNumber, 1, strOrgFilePath) = 0 Then
+        strError = ""
+        Goto Fail_OpenOrgFile
+    End If
+
+'   Line Input #iFileNumber, s_StyleFile
+
+    ListOrgCount = 0
+    iI           = 0
+    strBuffer    = "ListOrgData" 'Dummy string
+
+'   Do While (Not Eof(1)) And strBuffer <> ""
+    Do While (Not Eof(1))
+
+        ListOrgCount = ListOrgCount + 1
+
+        Line Input #iFileNumber, strBuffer
+            GetItemAndValue strBuffer, iDepth, strItem, strValue
+            If iDepth > 0 Or strItem <> "Depth" Then
+                strError = "포멧에러[#" + LTrim(Str(ListOrgCount)) + "] : Depth"
+                Goto Fail_OpenOrgFile
+            End If
+            ListOrgDepth(iI) = Val(strValue)
+
+        Line Input #iFileNumber, strBuffer
+            GetItemAndValue strBuffer, iDepth, strItem, strValue
+            If iDepth > 0 Or strItem <> "SizeEnable" Then
+                strError = "포멧에러[#" + LTrim(Str(ListOrgCount)) + "] : SizeEnable"
+                Goto Fail_OpenOrgFile
+            End If
+            ListOrgSizeEnable(iI) = Val(strValue)
+
+        Line Input #iFileNumber, strBuffer
+            GetItemAndValue strBuffer, iDepth, strItem, strValue
+            If iDepth > 0 Or strItem <> "Size" Then
+                strError = "포멧에러[#" + LTrim(Str(ListOrgCount)) + "] : Size"
+                Goto Fail_OpenOrgFile
+            End If
+            ListOrgSize(iI) = Val(strValue) 'index가 아닌 size.
+
+'           For iJ = 0 To E_COUNT_iFrameSize
+'               If e_iFrameSize(iJ) >= ListOrgSize(iI) Then
+'                   ListOrgSize(iI) = iJ 'index로 변환.
+'                   Exit For
+'               End If
+'           Next iJ
+
+        Line Input #iFileNumber, strBuffer
+            GetItemAndValue strBuffer, iDepth, strItem, strValue
+            If iDepth > 0 Or strItem <> "Content" Then
+                strError = "포멧에러[#" + LTrim(Str(ListOrgCount)) + "] : Content"
+                Goto Fail_OpenOrgFile
+            End If
+            ListOrgContent(iI) = SingleLineToMultiLine(strValue)
+
+        iI = iI + 1
+
+    Loop
+
+    ListOrgSelect = 0
+
+    'must be reset.
+
+'   If s_StyleFile <> "" Then
+'       dmy = OpenStyleFile(0, 1, s_StyleFile)
+'   End If
+
+    Goto Exit_OpenOrgFile
+
+Fail_OpenOrgFile:
+
+    If strError <> "" Then
+        MsgBox strError, 16, "조직도 만들기"
+    End If
+
+    iResult = 0
+
+Exit_OpenOrgFile:
+
+    If iFileNumber <> 0 Then
+        Close #iFileNumber
+    End If
+
+    OpenOrgFile = iResult
+
+End Function
+
+Function SaveOrgFile(strOrgFilePath As String) As Integer
+
+    Dim iResult         As Integer
+    Dim strError        As String
+    Dim iFileNumber     As Integer
+    Dim strBuffer       As String
+    Dim iI              As Integer
+
+	On Local Error Goto Fail_SaveOrgFile
+
+    iResult     = 1
+    iFileNumber = 0
+
+    If strOrgFilePath = "" Then
+        strOrgFilePath = g_FileExt.FileDialog(0, "*.org", "", "Organization Files (*.org)|*.org|All Files (*.*)|*.*||")
+    End If
+
+    If strOrgFilePath = "" Then
+        strError = ""
+        Goto Fail_SaveOrgFile
+    End If
+
+    iFileNumber = 1
+    Open strOrgFilePath For Output As #iFileNumber
+
+    If SaveStyleFile(iFileNumber, 1, strOrgFilePath) = 0 Then
+        strError = ""
+        Goto Fail_SaveOrgFile
+    End If
+
+'   Print #iFileNumber, s_StyleFile
+
+    For iI = 0 To ListOrgCount - 1
+        Print #iFileNumber, "Depth="      + LTrim(Str(ListOrgDepth(iI)))
+        Print #iFileNumber, "SizeEnable=" + LTrim(Str(ListOrgSizeEnable(iI)))
+'       Print #iFileNumber, "Size="       + LTrim(Str(e_iFrameSize(ListOrgSize(iI))))
+        Print #iFileNumber, "Size="       + LTrim(Str(ListOrgSize(iI)))
+        strBuffer = MultiLineToSingleLine(ListOrgContent(iI))
+        Print #iFileNumber, "Content="    + strBuffer
+    Next iI
+
+    Goto Exit_SaveOrgFile
+
+Fail_SaveOrgFile:
+
+    If strError <> "" Then
+        MsgBox strError, 16, "조직도 만들기"
+    End If
+
+    iResult = 0
+
+Exit_SaveOrgFile:
+
+    If iFileNumber <> 0 Then
+        Close #iFileNumber
+    End If
+
+    SaveOrgFile = iResult
+
+End Function
+
+Function OpenOrgFileNew() As Integer
+
+    s_EnableTitle   = 1
+    s_TitleText     = "훈민 워드 2000 조직도 만들기"
+    s_TitleFont     = 2  '돋움
+    s_TitleSize     = 10 '32pt.
+    s_TitleColor    = 1
+    e_iTitleColorR(s_TitleColor) = 128
+    e_iTitleColorG(s_TitleColor) = 0
+    e_iTitleColorB(s_TitleColor) = 128
+    s_FrameType     = 0  '2 = 사각형
+    s_Transparent   = 1
+    s_FrameSColor   = 1
+    e_iFrameSColorR(s_FrameSColor) = -1
+    e_iFrameSColorG(s_FrameSColor) = -1
+    e_iFrameSColorB(s_FrameSColor) = -1
+    s_FrameEColor   = 1
+    e_iFrameEColorR(s_FrameEColor) = -1
+    e_iFrameEColorG(s_FrameEColor) = -1
+    e_iFrameEColorB(s_FrameEColor) = -1
+    s_FrameGradient = 0
+    s_FrameShade    = 0
+    s_EnableLink    = 1
+    s_LinkType      = 0  '실선
+    s_LinkWidth     = 0  '0.1㎜
+    s_LinkColor     = 1
+    e_iLinkColorR(s_LinkColor) = 0
+    e_iLinkColorG(s_LinkColor) = 0
+    e_iLinkColorB(s_LinkColor) = 0
+
+    s_StyleFile     = ""
+
+    ListOrgCount      = 1
+    ListOrgDepth(0)   = 0
+    ListOrgSize(0)    = 0
+    ListOrgContent(0) = ""
+
+    ListOrgSelect = 0
+
+    'must be reset.
+
+    OpenOrgFileNew = 1
+
+End Function
+
+Function OpenOrgFileSample() As Integer
+
+    s_EnableTitle   = 1
+    s_TitleText     = "훈민 워드 2000 조직도 만들기"
+    s_TitleFont     = 2  '돋움
+    s_TitleSize     = 10 '32pt.
+    s_TitleColor    = 1
+    e_iTitleColorR(s_TitleColor) = 128
+    e_iTitleColorG(s_TitleColor) = 0
+    e_iTitleColorB(s_TitleColor) = 128
+    s_FrameType     = 0  '2 = 사각형
+    s_Transparent   = 1
+    s_FrameSColor   = 1
+    e_iFrameSColorR(s_FrameSColor) = -1
+    e_iFrameSColorG(s_FrameSColor) = -1
+    e_iFrameSColorB(s_FrameSColor) = -1
+    s_FrameEColor   = 1
+    e_iFrameEColorR(s_FrameEColor) = -1
+    e_iFrameEColorG(s_FrameEColor) = -1
+    e_iFrameEColorB(s_FrameEColor) = -1
+    s_FrameGradient = 0
+    s_FrameShade    = 0
+    s_EnableLink    = 1
+    s_LinkType      = 0  '실선
+    s_LinkWidth     = 0  '0.1㎜
+    s_LinkColor     = 1
+    e_iLinkColorR(s_LinkColor) = 0
+    e_iLinkColorG(s_LinkColor) = 0
+    e_iLinkColorB(s_LinkColor) = 0
+
+    s_StyleFile     = ""
+
+    ListOrgDepth(0)       = 0
+    ListOrgSize(0)        = 1
+    ListOrgSizeEnable(0)  = 0
+    ListOrgContent(0)     = "@R영업본부@N " + Chr(13) + Chr(10) + "최태발 상무"
+
+    ListOrgDepth(1)       = 1
+    ListOrgSize(1)        = 1
+    ListOrgSizeEnable(1)  = 0
+    ListOrgContent(1)     = "@B기획부@N" + Chr(13) + Chr(10) + "정채동 부장"
+
+    ListOrgDepth(2)       = 2
+    ListOrgSize(2)        = 1
+    ListOrgSizeEnable(2)  = 0
+    ListOrgContent(2)     = "@G기획과@N" + Chr(13) + Chr(10) + "최경순 과장"
+
+    ListOrgDepth(3)       = 3
+    ListOrgSize(3)        = 2
+    ListOrgSizeEnable(3)  = 0
+    ListOrgContent(3)     = "최철이 대리" + Chr(13) + Chr(10) + "김영식 대리" + Chr(13) + Chr(10) + "이대팔 주임"
+
+    ListOrgDepth(4)       = 1
+    ListOrgSize(4)        = 1
+    ListOrgSizeEnable(4)  = 0
+    ListOrgContent(4)     = "@B영업부@N" + Chr(13) + Chr(10) + "김태석 부장"
+
+    ListOrgDepth(5)       = 2
+    ListOrgSize(5)        = 1
+    ListOrgSizeEnable(5)  = 0
+    ListOrgContent(5)     = "@G영업1과@N" + Chr(13) + Chr(10) + "송승현 과장"
+
+    ListOrgDepth(6)       = 3
+    ListOrgSize(6)        = 2
+    ListOrgSizeEnable(6)  = 0
+    ListOrgContent(6)     = "박기동 대리" + Chr(13) + Chr(10) + "유영국 사원" + Chr(13) + Chr(10) + "추요팔 사원"
+
+    ListOrgDepth(7)       = 2
+    ListOrgSize(7)        = 1
+    ListOrgSizeEnable(7)  = 0
+    ListOrgContent(7)     = "@G영업2과@N" + Chr(13) + Chr(10) + "김일해 과장"
+
+    ListOrgDepth(8)       = 3
+    ListOrgSize(8)        = 2
+    ListOrgSizeEnable(8)  = 0
+    ListOrgContent(8)     = "박기우 대리" + Chr(13) + Chr(10) + "이덕룡 주임" + Chr(13) + Chr(10) + "김상규 주임"
+
+    ListOrgDepth(9)       = 2
+    ListOrgSize(9)        = 1
+    ListOrgSizeEnable(9)  = 0
+    ListOrgContent(9)     = "@G영업3과@N" + Chr(13) + Chr(10) + "이갑진 과장"
+
+    ListOrgDepth(10)      = 3
+    ListOrgSize(10)       = 2
+    ListOrgSizeEnable(10) = 0
+    ListOrgContent(10)    = "조현국 대리" + Chr(13) + Chr(10) + "이대호 대리" + Chr(13) + Chr(10) + "오상국 주임"
+
+    ListOrgDepth(11)      = 1
+    ListOrgSize(11)       = 1
+    ListOrgSizeEnable(11) = 0
+    ListOrgContent(11)    = "@B자재부@N" + Chr(13) + Chr(10) + "김대중 부장"
+
+    ListOrgDepth(12)      = 2
+    ListOrgSize(12)       = 1
+    ListOrgSizeEnable(12) = 0
+    ListOrgContent(12)    = "@G자재1과@N" + Chr(13) + Chr(10) + "박수봉 과장"
+
+    ListOrgDepth(13)      = 3
+    ListOrgSize(13)       = 2
+    ListOrgSizeEnable(13) = 0
+    ListOrgContent(13)    = "윤국진 대리" + Chr(13) + Chr(10) + "박왕진 대리" + Chr(13) + Chr(10) + "석정훈 대리"
+
+    ListOrgDepth(14)      = 2
+    ListOrgSize(14)       = 1
+    ListOrgSizeEnable(14) = 0
+    ListOrgContent(14)    = "@G자재2과@N" + Chr(13) + Chr(10) + "김재수 과장"
+
+    ListOrgDepth(15)      = 3
+    ListOrgSize(15)       = 2
+    ListOrgSizeEnable(15) = 0
+    ListOrgContent(15)    = "채희숙 대리" + Chr(13) + Chr(10) + "천바우 대리" + Chr(13) + Chr(10) + "신병태 사원"
+
+    ListOrgCount  = 16
+    ListOrgSelect = 0
+
+    'must be reset.
+
+    OpenOrgFileSample = 1
+
+End Function
+
+Function OpenOrgFilePrev() As Integer
+
+    Dim iResult As Integer
+
+'   iResult = OpenOrgFile(g_CurDir + "Org.org")
+    If Dir("Org.org") = "" Then
+        iResult = OpenOrgFileSample()
+    Else
+        iResult = OpenOrgFile("Org.org")
+    End If
+'   iResult = OpenOrgFile(g_Hun70Path + "Org.org")로 바꾸어야함!!!
+
+    OpenOrgFilePrev = iResult
+
+End Function
+
+
+
+Sub UpdatePreview
+
+    Dim iI As Integer
+
+    dmy = g_CtrlExt.OrgSetItemCount(ListOrgCount)
+
+    For iI = 0 To ListOrgCount - 1
+        dmy = g_CtrlExt.OrgSetItemDepth(iI, ListOrgDepth(iI))
+    Next iI
+
+    dmy = g_CtrlExt.OrgRearrange()
+
+End Sub
+
+'Function ResetOrgStep1Dlg(iListOrgID As Integer, iTextSizeID As Integer) As Integer
+Function ResetOrgStep1Dlg(iListOrgID As Integer, iChkFrameSizeID As Integer, iComboFrameSizeID As Integer) As Integer
+
+  ReDim ListOrgArray(ListOrgCount - 1)  As String
+    Dim iC                              As Integer
+    Dim iI                              As Integer
+    Dim strTemp                         As String
+
+    '라벨에 깊이를 적용한다.
+    For iI = 0 To ListOrgCount - 1
+'       ListOrgArray(iI) = Space(ListOrgDepth(iI) * 2) + ListOrgSize(iI)
+        ListOrgArray(iI) = MakeListOrgItem(iI)
+    Next iI
+
+    DlgListBoxArray iListOrgID       , ListOrgArray
+    DlgValue        iListOrgID       , ListOrgSelect
+
+    DlgValue        iChkFrameSizeID  , ListOrgSizeEnable(ListOrgSelect)
+    DlgEnable       iComboFrameSizeID, ListOrgSizeEnable(ListOrgSelect)
+'   DlgText         iTextSizeID      , ListOrgSize(ListOrgSelect)
+    DlgValue        iComboFrameSizeID, ListOrgSize(ListOrgSelect)
+
+    'validation check.
+'       If ListOrgSizeEnable(ListOrgSelect) = 0 Then
+'           iC = GetStringLineCount(ListOrgContent(ListOrgSelect))
+'           For iI = 0 To E_COUNT_iFrameSize
+'               If e_iFrameSize(iI) >= iC Then
+'                   ListOrgSize(ListOrgSelect) = iI
+'                   Exit For
+'               End If
+'           Next iI
+'       End If
+
+    DlgValue        iComboFrameSizeID, ListOrgSize(ListOrgSelect)
+'   DlgText         iTextContentID   , ListOrgContent(ListOrgSelect)
+
+    UpdatePreview
+
+    dmy = g_CtrlExt.OrgSetSelectItem(ListOrgSelect)
+
+    'g_CtrlExt.EditSetText(ListOrgContent(ListOrgSelect)) 이렇게 쓰면 에러.
+    strTemp = ListOrgContent(ListOrgSelect)
+    dmy = g_CtrlExt.EditSetText(strTemp)
+
+End Function
+
+Function OrgStep1DlgProc(identifier$, action, suppvalue)
+
+    Dim iListOrgID          As Integer
+    Dim iPicPreviewID       As Integer
+    Dim iChkFrameSizeID     As Integer
+'   Dim iTextSizeID         As Integer
+    Dim iComboFrameSizeID   As Integer
+    Dim iTextContentID      As Integer
+    Dim iBtnInsertID        As Integer
+    Dim iBtnDeleteID        As Integer
+    Dim iBtn2InsertID       As Integer
+    Dim iBtn3InsertID       As Integer
+    Dim iBtn4InsertID       As Integer
+'   Dim iPicLogoID          As Integer
+    Dim iBtnNewID           As Integer
+    Dim iBtnSampleID        As Integer
+    Dim iBtnOpenID          As Integer
+    Dim iBtnSaveID          As Integer
+    Dim iBtnMakeID          As Integer
+    Dim iBtnNextID          As Integer
+    Dim iBtnExitID          As Integer
+    Dim iBtnFunc1ID         As Integer
+    Dim iBtnFunc2ID         As Integer
+    Dim iBtnFunc3ID         As Integer
+
+    Dim iDepthCurr          As Integer
+    Dim iC                  As Integer
+    Dim iI                  As Integer
+    Dim iJ                  As Integer
+    Dim iLoop               As Integer
+    Dim strTemp             As String
+
+    iListOrgID        = DlgControlId("ListOrg")
+    iPicPreviewID     = DlgControlId("PicPreview")
+    iChkFrameSizeID   = DlgControlId("ChkFrameSize")
+'   iTextSizeID       = DlgControlId("TextSize")
+    iComboFrameSizeID = DlgControlId("ComboFrameSize")
+    iTextContentID    = DlgControlId("TextContent")
+    iBtnInsertID      = DlgControlId("BtnInsert")
+    iBtnDeleteID      = DlgControlId("BtnDelete")
+    iBtn2InsertID     = DlgControlId("Btn2Insert")
+    iBtn3InsertID     = DlgControlId("Btn3Insert")
+    iBtn4InsertID     = DlgControlId("Btn4Insert")
+'   iPicLogoID        = DlgControlId("PicLogo")
+    iBtnNewID         = DlgControlId("BtnNew")
+    iBtnSampleID      = DlgControlId("BtnSample")
+    iBtnOpenID        = DlgControlId("BtnOpen")
+    iBtnSaveID        = DlgControlId("BtnSave")
+    iBtnMakeID        = DlgControlId("BtnMake")
+    iBtnNextID        = DlgControlId("BtnNext")
+    iBtnExitID        = DlgControlId("BtnExit")
+    iBtnFunc1ID       = DlgControlId("BtnFunc1")
+    iBtnFunc2ID       = DlgControlId("BtnFunc2")
+    iBtnFunc3ID       = DlgControlId("BtnFunc3")
+
+    OrgStep1DlgProc = 1
+
+    Select Case action
+
+        Case 1
+
+            dmy = g_CtrlExt.OrgCreate ("조직도 만들기", iPicPreviewID  + 11, 0, 0, 0, 0)
+            dmy = g_CtrlExt.OrgSetReflectWnd (iListOrgID  + 11, "ListBox")
+            dmy = g_CtrlExt.EditCreate("조직도 만들기", iTextContentID + 11, 0, 0, 0, 0)
+            dmy = g_CtrlExt.EditSetReflectWnd(iBtnFunc1ID + 11, "Button")
+            DlgVisible iPicPreviewID , 0
+            DlgVisible iTextContentID, 0
+            DlgVisible iBtnFunc1ID   , 0
+            DlgVisible iBtnFunc2ID   , 0
+            DlgVisible iBtnFunc3ID   , 0
+
+            DlgListBoxArray iComboFrameSizeID, e_strFrameSize
+
+            dmy = ResetOrgStep1Dlg(iListOrgID, iChkFrameSizeID, iComboFrameSizeID)
+            '이렇게 나눈 이유는 OpenOrgFileXXX의 파라메터로 control id를 주기가 지저분했기 때문.
+
+        Case 2
+
+            '리스트박스 아이템 선택
+            If identifier$ = "ListOrg" Then
+                ListOrgSelect = suppvalue
+                DlgValue  iChkFrameSizeID  , ListOrgSizeEnable(ListOrgSelect)
+                DlgEnable iComboFrameSizeID, ListOrgSizeEnable(ListOrgSelect)
+'               DlgText   iTextSizeID      , ListOrgSize(ListOrgSelect)
+                DlgValue  iComboFrameSizeID, ListOrgSize(ListOrgSelect)
+'               DlgText   iTextContentID   , ListOrgContent(ListOrgSelect)
+                dmy = g_CtrlExt.OrgSetSelectItem(ListOrgSelect)
+                strTemp = ListOrgContent(ListOrgSelect) '왜 이렇게 해야 되는가?
+                dmy = g_CtrlExt.EditSetText(strTemp)
+            End If
+
+            If identifier$ = "ChkFrameSize" Then
+                ListOrgSizeEnable(ListOrgSelect) = DlgValue(iChkFrameSizeID)
+                DlgEnable iComboFrameSizeID, ListOrgSizeEnable(ListOrgSelect)
+
+'               If ListOrgSizeEnable(ListOrgSelect) = 0 Then
+'                   iC = GetStringLineCount(ListOrgContent(ListOrgSelect))
+'                   iJ = 0
+'                   For iI = 0 To E_COUNT_iFrameSize
+'                       If e_iFrameSize(iI) >= iC Then
+'                           ListOrgSize(ListOrgSelect) = iI
+'                           Exit For
+'                       End If
+'                   Next iI
+'                   DlgValue iComboFrameSizeID, ListOrgSize(ListOrgSelect)
+'               End If
+            End If
+            If identifier$ = "ComboFrameSize" Then
+                ListOrgSize(ListOrgSelect) = DlgValue(iComboFrameSizeID)
+            End If
+
+            If identifier$ = "BtnInsert" Or identifier$ = "Btn2Insert" Or identifier$ = "Btn3Insert" Or identifier$ = "Btn4Insert" Then
+                '아이템 갯수의 최대치 체크
+                ListOrgCount = DlgListBoxArray(iListOrgID)
+                If ListOrgCount >= MAX_NUM_ITEM Then
+                    Goto Exit_OrgStep1DlgProc
+                End If
+
+                '반복 횟수
+                If identifier$ = "BtnInsert"  Then
+                    iLoop = 1
+                End If
+                If identifier$ = "Btn2Insert" Then
+                    iLoop = 2
+                End If
+                If identifier$ = "Btn3Insert" Then
+                    iLoop = 3
+                End If
+                If identifier$ = "Btn4Insert" Then
+                    iLoop = 4
+                End If
+
+                ListOrgSelect = DlgValue(iListOrgID)
+                '현재 선택된 아이템의 깊이
+                iDepthCurr    = ListOrgDepth(ListOrgSelect)
+
+                For iI = ListOrgSelect + 1 To ListOrgCount - 1
+                    '삽입될 아이템의 위치 결정
+                    If ListOrgDepth(iI) <= iDepthCurr Then
+                        For iJ = 1 To iLoop
+                            dmy = InsertItem(iI + iJ - 1, iDepthCurr + 1, "아이템", "")
+                        Next iJ
+                        Goto Step_End_Insert
+                    End If
+                Next iI
+
+                For iJ = 1 To iLoop
+                    '마지막 위치에 추가
+                    iI = ListOrgCount
+                    dmy = InsertItem(iI, iDepthCurr + 1, "아이템", "")
+                Next iJ
+
+Step_End_Insert:
+
+                ListOrgCount = DlgListBoxArray(iListOrgID)
+                UpdatePreview
+
+            End If
+
+            If identifier$ = "BtnDelete" Then
+                '루트아이템은 삭제할 수 없다. 아이템 갯수의 최소치 체크.
+                ListOrgSelect = DlgValue(iListOrgID)
+                If ListOrgSelect = 0 Then
+                    Goto Exit_OrgStep1DlgProc
+                End If
+
+                ListOrgCount = DlgListBoxArray(iListOrgID)
+                iDepthCurr   = ListOrgDepth(ListOrgSelect)
+
+                For iI = ListOrgSelect To ListOrgCount - 1
+                    '대상 아이템의 깊이가 같거나 현재위치가 마지막 아이템을 넘었을 때(?)
+                    If ListOrgDepth(ListOrgSelect) <= iDepthCurr And iI > ListOrgSelect Then
+                        Exit For 'For iI
+                    End If
+                    DeleteItem(ListOrgSelect)
+                    'ListOrgSelect값은 다음 아이템을 가르킨다.
+                Next iI
+
+                ListOrgCount = DlgListBoxArray(iListOrgID)
+                If ListOrgSelect >= ListOrgCount Then
+                    ListOrgSelect = ListOrgCount - 1
+                End If
+                DlgValue iListOrgID, ListOrgSelect
+
+                dmy = g_CtrlExt.OrgSetSelectItem(ListOrgSelect)
+                UpdatePreview
+
+            End If
+
+            If identifier$ = "BtnNew" Then
+                dmy = OpenOrgFileNew()
+                dmy = ResetOrgStep1Dlg(iListOrgID, iChkFrameSizeID, iComboFrameSizeID)
+            End If
+            If identifier$ = "BtnSample" Then
+                dmy = OpenOrgFileSample()
+                dmy = ResetOrgStep1Dlg(iListOrgID, iChkFrameSizeID, iComboFrameSizeID)
+            End If
+            If identifier$ = "BtnOpen" Then
+                dmy = OpenOrgFile("")
+                dmy = ResetOrgStep1Dlg(iListOrgID, iChkFrameSizeID, iComboFrameSizeID)
+            End If
+            If identifier$ = "BtnSave" Then
+                dmy = SaveOrgFile("")
+                dmy = ResetOrgStep1Dlg(iListOrgID, iChkFrameSizeID, iComboFrameSizeID)
+            End If
+            If identifier$ = "BtnMake" Then
+                dmy = g_CtrlExt.OrgDestroyWindow()
+                dmy = g_CtrlExt.EditDestroyWindow()
+                g_Make     = 1
+                g_Next     = 0
+                OrgStep1DlgProc = 0
+            End If
+            If identifier$ = "BtnNext" Then
+                dmy = g_CtrlExt.OrgDestroyWindow()
+                dmy = g_CtrlExt.EditDestroyWindow()
+                g_Make     = 0
+                g_Next     = 1
+                OrgStep1DlgProc = 0
+            End If
+            If identifier$ = "BtnExit" Then
+                dmy = g_CtrlExt.OrgDestroyWindow()
+                dmy = g_CtrlExt.EditDestroyWindow()
+                g_Make     = 0
+                g_Next     = 0
+                OrgStep1DlgProc = 0
+            End If
+            If identifier$ = "BtnFunc1" Then
+                ListOrgContent(ListOrgSelect) = g_CtrlExt.EditGetText()
+
+'               If ListOrgSizeEnable(ListOrgSelect) = 0 Then 'disable되어있을 때만 재계산한다.
+'                   iC = GetStringLineCount(ListOrgContent(ListOrgSelect))
+'                   iJ = 0
+'                   For iI = 0 To E_COUNT_iFrameSize
+'                       If e_iFrameSize(iI) >= iC Then
+'                           ListOrgSize(ListOrgSelect) = iI
+'                           Exit For
+'                       End If
+'                   Next iI
+'                   DlgValue iComboFrameSizeID, ListOrgSize(ListOrgSelect)
+'               End If
+            End If
+            If identifier$ = "BtnFunc2" Then
+            End If
+            If identifier$ = "BtnFunc3" Then
+            End If
+
+        Case 3
+
+'           If identifier$ = "TextSize" Then
+'               '아이템 배열 및 갯수의 설정
+'               Redim Preserve ListOrgArray(ListOrgCount)
+'               ListOrgCount = DlgListBoxArray(iListOrgID, ListOrgArray)
+
+'               ListOrgSize(ListOrgSelect) = DlgText(iTextSizeID)
+
+'               '라벨은 깊이가 있으므로 리스트박스 아이템을 재설정 한다.
+'               ListOrgArray(ListOrgSelect) = Space(ListOrgDepth(ListOrgSelect) * 2) + ListOrgSize(ListOrgSelect)
+'               DlgListBoxArray iListOrgID, ListOrgArray
+'           End If
+
+'           If identifier$ = "TextContent" Then
+'               ListOrgContent(ListOrgSelect) = DlgText(iTextContentID)
+'           End If
+
+        Case 4
+        Case 5
+
+    End Select
+
+Exit_OrgStep1DlgProc:
+
+    '리스트박스 아이템의 선택상태를 유지한다. (Focus)
+    If action = 2 Or action = 3 Then
+        DlgValue iListOrgID, ListOrgSelect
+    End If
+
+End Function
+
+
+
+Function ResetOrgStep2DlgTitle(iChkTitleID, iTextTitleID, iComboTitleFontID, iComboTitleSizeID, iComboTitleColorID, iPicTitleID As Integer) As Integer
+
+    If iChkTitleID > -1 Then
+        DlgValue  iChkTitleID       , s_EnableTitle
+        DlgEnable iTextTitleID      , s_EnableTitle
+        DlgEnable iComboTitleFontID , s_EnableTitle
+        DlgEnable iComboTitleSizeID , s_EnableTitle
+'       DlgEnable iComboTitleColorID, s_EnableTitle
+        dmy = g_CtrlExt.ColorSetEnable(0, s_EnableTitle)
+        dmy = g_CtrlExt.TitleSetEnable(s_EnableTitle)
+    End If
+    If iTextTitleID > -1 Then
+        DlgText iTextTitleID, s_TitleText
+        dmy = g_CtrlExt.TitleSetText(s_TitleText)
+    End If
+    If iComboTitleFontID > -1 Then
+        DlgValue iComboTitleFontID, s_TitleFont
+        s_strParam = e_strTitleFont(s_TitleFont)
+        dmy = g_CtrlExt.TitleSetFont(s_strParam, e_iTitleSizePt(s_TitleSize))
+    End If
+    If iComboTitleSizeID > -1 Then
+        DlgValue iComboTitleSizeID, s_TitleSize
+        s_strParam = e_strTitleFont(s_TitleFont)
+        dmy = g_CtrlExt.TitleSetFont(s_strParam, e_iTitleSizePt(s_TitleSize))
+    End If
+    If iComboTitleColorID > -1 Then
+'       DlgValue iComboTitleColorID, s_TitleColor
+        dmy = g_CtrlExt.ColorSetColor(0, e_iTitleColorR(s_TitleColor), e_iTitleColorG(s_TitleColor), e_iTitleColorB(s_TitleColor))
+        dmy = g_CtrlExt.TitleSetColor(e_iTitleColorR(s_TitleColor), e_iTitleColorG(s_TitleColor), e_iTitleColorB(s_TitleColor))
+    End If
+    If iPicTitleID > -1 Then
+    End If
+
+    ResetOrgStep2DlgTitle = 1
+
+End Function
+
+Function ResetOrgStep2DlgFrame(iComboFrameTypeID, iComboFrameSColorID, iComboFrameEColorID, iChkGradientID, iChkShadeID, iPicFrameID As Integer) As Integer
+
+    If iComboFrameTypeID > -1 Then
+        DlgValue iComboFrameTypeID, s_FrameType
+        dmy = g_CtrlExt.FrameSetType(e_iFrameType(s_FrameType))
+    End If
+    If iComboFrameSColorID > -1 Then
+'       DlgValue iComboFrameSColorID, s_FrameSColor
+        dmy = g_CtrlExt.ColorSetColor(1, e_iFrameSColorR(s_FrameSColor), e_iFrameSColorG(s_FrameSColor), e_iFrameSColorB(s_FrameSColor))
+        dmy = g_CtrlExt.FrameSetSColor(e_iFrameSColorR(s_FrameSColor), e_iFrameSColorG(s_FrameSColor), e_iFrameSColorB(s_FrameSColor))
+'exception code
+        If s_FrameSColor = 0 Then
+            s_Transparent = 1
+'           DlgEnable iComboFrameEColorID, 0
+            dmy = g_CtrlExt.ColorSetEnable(2, 0)
+            DlgEnable iChkGradientID     , 0
+            DlgEnable iChkShadeID        , 0
+        Else
+            s_TransParent = 0
+'           DlgEnable iComboFrameEColorID, s_FrameGradient
+            dmy = g_CtrlExt.ColorSetEnable(2, s_FrameGradient)
+            DlgEnable iChkGradientID     , 1
+            DlgEnable iChkShadeID        , 1
+        End If
+    End If
+    If iComboFrameEColorID > -1 Then
+'       DlgValue iComboFrameEColorID, s_FrameEColor
+        dmy = g_CtrlExt.ColorSetColor(2, e_iFrameEColorR(s_FrameEColor), e_iFrameEColorG(s_FrameEColor), e_iFrameEColorB(s_FrameEColor))
+        dmy = g_CtrlExt.FrameSetEColor(e_iFrameEColorR(s_FrameEColor), e_iFrameEColorG(s_FrameEColor), e_iFrameEColorB(s_FrameEColor))
+    End If
+    If iChkGradientID > -1 Then
+        DlgValue  iChkGradientID     , s_FrameGradient
+'       DlgEnable iComboFrameEColorID, s_FrameGradient
+        dmy = g_CtrlExt.ColorSetEnable(2, s_FrameGradient)
+        dmy = g_CtrlExt.FrameSetGradient(s_FrameGradient)
+    End If
+    If iChkShadeID > -1 Then
+        DlgValue iChkShadeID, s_FrameShade
+        dmy = g_CtrlExt.FrameSetShade(s_FrameShade)
+    End If
+    If iPicFrameID > -1 Then
+    End If
+
+    ResetOrgStep2DlgFrame = 1
+
+End Function
+
+Function ResetOrgStep2DlgLink(iChkLinkID, iComboLinkTypeID, iComboLinkWidthID, iComboLinkColorID, iPicLinkID As Integer) As Integer
+
+    If iChkLinkID > 0 Then
+        DlgValue  iChkLinkID       , s_EnableLink
+        DlgEnable iComboLinkTypeID , s_EnableLink
+        DlgEnable iComboLinkWidthID, s_EnableLink
+'       DlgEnable iComboLinkColorID, s_EnableLink
+        dmy = g_CtrlExt.ColorSetEnable(3, s_EnableLink)
+        dmy = g_CtrlExt.LinkSetEnable(s_EnableLink)
+    End If
+    If iComboLinkTypeID > -1 Then
+        DlgValue iComboLinkTypeID, s_LinkType
+        dmy = g_CtrlExt.LinkSetType(e_iLinkType(s_LinkType))
+    End If
+    If iComboLinkWidthID > -1 Then
+        DlgValue iComboLinkWidthiD, s_LinkWidth
+        dmy = g_CtrlExt.LinkSetWidth(e_iLinkWidthPt(s_LinkWidth))
+    End If
+    If iComboLinkColorID > -1 Then
+'       DlgValue iComboLinkColorID, s_LinkColor
+        dmy = g_CtrlExt.ColorSetColor(3, e_iLinkColorR(s_LinkColor), e_iLinkColorG(s_LinkColor), e_iLinkColorB(s_LinkColor))
+        dmy = g_CtrlExt.LinkSetColor(e_iLinkColorR(s_LinkColor), e_iLinkColorG(s_LinkColor), e_iLinkColorB(s_LinkColor))
+    End If
+    If iPicLinkID > -1 Then
+    End If
+
+    ResetOrgStep2DlgLink = 1
+
+End Function
+
+Function ResetOrgStep2DlgStyle(iTextStyleFileID As Integer)
+
+    If iTextStyleFileID > -1 Then
+        DlgText iTextStyleFileID, s_StyleFile
+    End If
+
+End Function
+
+Function OrgStep2DlgProc(identifier$, action, suppvalue)
+
+    Dim iChkTitleID         As Integer
+    Dim iTextTitleID        As Integer
+    Dim iComboTitleFontID   As Integer
+    Dim iComboTitleSizeID   As Integer
+    Dim iComboTitleColorID  As Integer
+    Dim iPicTitleID         As Integer
+    Dim iComboFrameTypeID   As Integer
+    Dim iComboFrameSColorID As Integer
+    Dim iComboFrameEColorID As Integer
+    Dim iChkGradientID      As Integer
+    Dim iChkShadeID         As Integer
+    Dim iPicFrameID         As Integer
+    Dim iChkLinkID          As Integer
+    Dim iComboLinkTypeID    As Integer
+    Dim iComboLinkWidthID   As Integer
+    Dim iComboLinkColorID   As Integer
+    Dim iPicLinkID          As Integer
+    Dim iTextStyleFileID    As Integer
+    Dim iBtnOpenStyleFileID As Integer
+    Dim iBtnSaveStyleFileID As Integer
+    Dim iBtnNewID           As Integer
+    Dim iBtnSampleID        As Integer
+    Dim iBtnOpenID          As Integer
+    Dim iBtnSaveID          As Integer
+    Dim iBtnMakeID          As Integer
+    Dim iBtnPrevID          As Integer
+    Dim iBtnExitID          As Integer
+
+    iChkTitleID         = DlgControlId("ChkTitle")
+    iTextTitleID        = DlgControlId("TextTitle")
+    iComboTitleFontID   = DlgControlId("ComboTitleFont")
+    iComboTitleSizeID   = DlgControlId("ComboTitleSize")
+    iComboTitleColorID  = DlgControlId("ComboTitleColor")
+    iPicTitleID         = DlgControlId("PicTitle")
+    iComboFrameTypeID   = DlgControlId("ComboFrameType")
+    iComboFrameSColorID = DlgControlId("ComboFrameSColor")
+    iComboFrameEColorID = DlgControlId("ComboFrameEColor")
+    iChkGradientID      = DlgControlId("ChkGradient")
+    iChkShadeID         = DlgControlId("ChkShade")
+    iPicFrameID         = DlgControlId("PicFrame")
+    iChkLinkID          = DlgControlId("ChkLink")
+    iComboLinkTypeID    = DlgControlId("ComboLinkType")
+    iComboLinkWidthID   = DlgControlId("ComboLinkWidth")
+    iComboLinkColorID   = DlgControlId("ComboLinkColor")
+    iPicLinkID          = DlgControlId("PicLink")
+    iTextStyleFileID    = DlgControlId("TextStyleFile")
+    iBtnOpenStyleFileID = DlgControlId("BtnOpenStyleFile")
+    iBtnSaveStyleFileID = DlgControlId("BtnSaveStyleFile")
+    iBtnNewID           = DlgControlId("BtnNew")
+    iBtnSampleID        = DlgControlId("BtnSample")
+    iBtnOpenID          = DlgControlId("BtnOpen")
+    iBtnSaveID          = DlgControlId("BtnSave")
+    iBtnMakeID          = DlgControlId("BtnMake")
+    iBtnPrevID          = DlgControlId("BtnPrev")
+    iBtnExitID          = DlgControlId("BtnExit")
+
+    OrgStep2DlgProc = 1
+
+    Select Case action
+
+        Case 1
+
+            dmy = g_CtrlExt.TitleCreate   ("조직도 만들기", iPicTitleID         + 11, 0, 0, 0, 0)
+            dmy = g_CtrlExt.FrameCreate   ("조직도 만들기", iPicFrameID         + 11, 0, 0, 0, 0)
+            dmy = g_CtrlExt.LinkCreate    ("조직도 만들기", iPicLinkID          + 11, 0, 0, 0, 0)
+            dmy = g_CtrlExt.ColorCreate(0, "조직도 만들기", iComboTitleColorID  + 11, 0, 0, 0, 0)
+            dmy = g_CtrlExt.ColorSetReflectWnd(0, iComboTitleColorID  + 11, "ComboBox")
+            dmy = g_CtrlExt.ColorCreate(1, "조직도 만들기", iComboFrameSColorID + 11, 0, 0, 0, 0)
+            dmy = g_CtrlExt.ColorSetReflectWnd(1, iComboFrameSColorID + 11, "ComboBox")
+            dmy = g_CtrlExt.ColorCreate(2, "조직도 만들기", iComboFrameEColorID + 11, 0, 0, 0, 0)
+            dmy = g_CtrlExt.ColorSetReflectWnd(2, iComboFrameEColorID + 11, "ComboBox")
+            dmy = g_CtrlExt.ColorCreate(3, "조직도 만들기", iComboLinkColorID   + 11, 0, 0, 0, 0)
+            dmy = g_CtrlExt.ColorSetReflectWnd(3, iComboLinkColorID   + 11, "ComboBox")
+            DlgVisible iPicTitleID        , 0
+            DlgVisible iPicFrameID        , 0
+            DlgVisible iPicLinkID         , 0
+            DlgVisible iComboTitleColorID , 0
+            DlgVisible iComboFrameSColorID, 0
+            DlgVisible iComboFrameEColorID, 0
+            DlgVisible iComboLinkColorID  , 0
+
+            DlgListBoxArray iComboTitleFontID  , e_strTitleFont
+            DlgListBoxArray iComboTitleSizeID  , e_strTitleSize
+            DlgListBoxArray iComboTitleColorID , e_strTitleColor
+            DlgListBoxArray iComboFrameTypeID  , e_strFrameType
+            DlgListBoxArray iComboFrameSColorID, e_strFrameSColor
+            DlgListBoxArray iComboFrameEColorID, e_strFrameEColor
+            DlgListBoxArray iComboLinkTypeID   , e_strLinkType
+            DlgListBoxArray iComboLinkWidthID  , e_strLinkWidth
+            DlgListBoxArray iComboLinkColorID  , e_strLinkColor
+
+            dmy = ResetOrgStep2DlgTitle(iChkTitleID, iTextTitleID, iComboTitleFontID, iComboTitleSizeID, iComboTitleColorID, iPicTitleID)
+            dmy = ResetOrgStep2DlgFrame(iComboFrameTypeID, iComboFrameSColorID, iComboFrameEColorID, iChkGradientID, iChkShadeID, iPicFrameID)
+            dmy = ResetOrgStep2DlgLink(iChkLinkID, iComboLinkTypeID, iComboLinkWidthID, iComboLinkColorID, iPicLinkID)
+            dmy = ResetOrgStep2DlgStyle(iTextStyleFileID)
+
+            DlgEnable iTextStyleFileID, 0
+
+            DlgEnable iBtnNewID   , 1
+            DlgEnable iBtnSampleID, 1
+            DlgEnable iBtnOpenID  , 1
+            DlgEnable iBtnSaveID  , 1
+            DlgEnable iBtnMakeID  , 1
+            DlgEnable iBtnPrevID  , 1
+            DlgEnable iBtnExitID  , 1
+
+        Case 2
+
+            If identifier$ = "ChkTitle" Then
+                s_EnableTitle = DlgValue(iChkTitleID)
+                DlgEnable iTextTitleID      , s_EnableTitle
+                DlgEnable iComboTitleFontID , s_EnableTitle
+                DlgEnable iComboTitleSizeID , s_EnableTitle
+'               DlgEnable iComboTitleColorID, s_EnableTitle
+                dmy = g_CtrlExt.ColorSetEnable(0, s_EnableTitle)
+                DlgEnable iPicTitleID       , s_EnableTitle
+                dmy = g_CtrlExt.TitleSetEnable(s_EnableTitle)
+            End If
+            If identifier$ = "ComboTitleFont" Then
+                s_TitleFont = DlgValue(iComboTitleFontID)
+                s_strParam = e_strTitleFont(s_TitleFont)
+                dmy = g_CtrlExt.TitleSetFont(s_strParam, e_iTitleSizePt(s_TitleSize))
+            End If
+            If identifier$ = "ComboTitleSize" Then
+                 s_TitleSize = DlgValue(iComboTitleSizeID)
+                s_strParam = e_strTitleFont(s_TitleFont)
+                dmy = g_CtrlExt.TitleSetFont(s_strParam, e_iTitleSizePt(s_TitleSize))
+            End If
+            If identifier$ = "ComboTitleColor" Then
+'               s_TitleColor = DlgValue(iComboTitleColorID)
+'               dmy = g_CtrlExt.TitleSetColor(e_iTitleColorR(s_TitleColor), e_iTitleColorG(s_TitleColor), e_iTitleColorB(s_TitleColor))
+                s_TitleColor = 1
+                dmy = g_CtrlExt.ColorGetColor(0, e_iTitleColorR(s_TitleColor), e_iTitleColorG(s_TitleColor), e_iTitleColorB(s_TitleColor))
+                dmy = g_CtrlExt.TitleSetColor(   e_iTitleColorR(s_TitleColor), e_iTitleColorG(s_TitleColor), e_iTitleColorB(s_TitleColor))
+            End If
+            If identifier$ = "ComboFrameType" Then
+                s_FrameType = DlgValue(iComboFrameTypeID)
+                dmy = g_CtrlExt.FrameSetType(e_iFrameType(s_FrameType))
+            End If
+            If identifier$ = "ComboFrameSColor" Then
+'               s_FrameSColor = DlgValue(iComboFrameSColorID)
+'               dmy = g_CtrlExt.FrameSetSColor(e_iFrameSColorR(s_FrameSColor), e_iFrameSColorG(s_FrameSColor), e_iFrameSColorB(s_FrameSColor))
+                s_FrameSColor = 1
+                dmy = g_CtrlExt.ColorGetColor (1, e_iFrameSColorR(s_FrameSColor), e_iFrameSColorG(s_FrameSColor), e_iFrameSColorB(s_FrameSColor))
+                dmy = g_CtrlExt.FrameSetSColor(   e_iFrameSColorR(s_FrameSColor), e_iFrameSColorG(s_FrameSColor), e_iFrameSColorB(s_FrameSColor))
+                If e_iFrameSColorR(s_FrameSColor) = -1 And e_iFrameSColorG(s_FrameSColor) = -1 And e_iFrameSColorB(s_FrameSColor) = -1 Then
+                    s_Transparent = 1
+'                   DlgEnable iComboFrameEColorID, 0
+                    dmy = g_CtrlExt.ColorSetEnable(2, 0)
+                    DlgEnable iChkGradientID     , 0
+                    DlgEnable iChkShadeID        , 0
+                Else
+                    s_TransParent = 0
+'                   DlgEnable iComboFrameEColorID, s_FrameGradient
+                    dmy = g_CtrlExt.ColorSetEnable(2, s_FrameGradient)
+                    DlgEnable iChkGradientID     , 1
+                    DlgEnable iChkShadeID        , 1
+                End If
+            End If
+            If identifier$ = "ComboFrameEColor" Then
+'               s_FrameEColor = DlgValue(iComboFrameEColorID)
+'               dmy = g_CtrlExt.FrameSetEColor(e_iFrameEColorR(s_FrameEColor), e_iFrameEColorG(s_FrameEColor), e_iFrameEColorB(s_FrameEColor))
+                s_FrameEColor = 1
+                dmy = g_CtrlExt.ColorGetColor (2, e_iFrameEColorR(s_FrameEColor), e_iFrameEColorG(s_FrameEColor), e_iFrameEColorB(s_FrameEColor))
+                dmy = g_CtrlExt.FrameSetEColor(   e_iFrameEColorR(s_FrameEColor), e_iFrameEColorG(s_FrameEColor), e_iFrameEColorB(s_FrameEColor))
+            End If
+            If identifier$ = "ChkGradient" Then
+                s_FrameGradient = DlgValue(iChkGradientID)
+'               DlgEnable iComboFrameEColorID, s_FrameGradient
+                dmy = g_CtrlExt.ColorSetEnable(2, s_FrameGradient)
+                dmy = g_CtrlExt.FrameSetGradient(s_FrameGradient)
+            End If
+            If identifier$ = "ChkShade" Then
+                s_FrameShade = DlgValue(iChkShadeID)
+                dmy = g_CtrlExt.FrameSetShade(s_FrameShade)
+            End If
+            If identifier$ = "ChkLink" Then
+                s_EnableLink = DlgValue(iChkLinkID)
+                DlgEnable iComboLinkTypeID , s_EnableLink
+                DlgEnable iComboLinkWidthID, s_EnableLink
+'               DlgEnable iComboLinkColorID, s_EnableLink
+                dmy = g_CtrlExt.ColorSetEnable(3, s_EnableLink)
+                DlgEnable iPicLinkID       , s_EnableLink
+                dmy = g_CtrlExt.LinkSetEnable(s_EnableLink)
+            End If
+            If identifier$ = "ComboLinkType" Then
+                s_LinkType = DlgValue(iComboLinkTypeID)
+                dmy = g_CtrlExt.LinkSetType(e_iLinkType(s_LinkType))
+            End If
+            If identifier$ = "ComboLinkWidth" Then
+                s_LinkWidth = DlgValue(iComboLinkWidthID)
+                dmy = g_CtrlExt.LinkSetWidth(e_iLinkWidthPt(s_LinkWidth))
+            End If
+            If identifier$ = "ComboLinkColor" Then
+'               s_LinkColor = DlgValue(iComboLinkColorID)
+'               dmy = g_CtrlExt.LinkSetColor(e_iLinkColorR(s_LinkColor), e_iLinkColorG(s_LinkColor), e_iLinkColorB(s_LinkColor))
+                s_LinkColor = 1
+                dmy = g_CtrlExt.ColorGetColor(3, e_iLinkColorR(s_LinkColor), e_iLinkColorG(s_LinkColor), e_iLinkColorB(s_LinkColor))
+                dmy = g_CtrlExt.LinkSetColor (   e_iLinkColorR(s_LinkColor), e_iLinkColorG(s_LinkColor), e_iLinkColorB(s_LinkColor))
+            End If
+
+            If identifier$ = "BtnOpenStyleFile" Then
+                dmy = OpenStyleFile(0, 1, "")
+                dmy = ResetOrgStep2DlgTitle(iChkTitleID, iTextTitleID, iComboTitleFontID, iComboTitleSizeID, iComboTitleColorID, iPicTitleID)
+                dmy = ResetOrgStep2DlgFrame(iComboFrameTypeID, iComboFrameSColorID, iComboFrameEColorID, iChkGradientID, iChkShadeID, iPicFrameID)
+                dmy = ResetOrgStep2DlgLink(iChkLinkID, iComboLinkTypeID, iComboLinkWidthID, iComboLinkColorID, iPicLinkID)
+                dmy = ResetOrgStep2DlgStyle(iTextStyleFileID)
+            End If
+            If identifier$ = "BtnSaveStyleFile" Then
+                dmy = SaveStyleFile(0, 1, "")
+                dmy = ResetOrgStep2DlgStyle(iTextStyleFileID)
+            End If
+
+            If identifier$ = "BtnNew" Then
+                dmy = OpenOrgFileNew()
+                dmy = ResetOrgStep2DlgTitle(iChkTitleID, iTextTitleID, iComboTitleFontID, iComboTitleSizeID, iComboTitleColorID, iPicTitleID)
+                dmy = ResetOrgStep2DlgFrame(iComboFrameTypeID, iComboFrameSColorID, iComboFrameEColorID, iChkGradientID, iChkShadeID, iPicFrameID)
+                dmy = ResetOrgStep2DlgLink(iChkLinkID, iComboLinkTypeID, iComboLinkWidthID, iComboLinkColorID, iPicLinkID)
+                dmy = ResetOrgStep2DlgStyle(iTextStyleFileID)
+            End If
+            If identifier$ = "BtnSample" Then
+                dmy = OpenOrgFileSample()
+                dmy = ResetOrgStep2DlgTitle(iChkTitleID, iTextTitleID, iComboTitleFontID, iComboTitleSizeID, iComboTitleColorID, iPicTitleID)
+                dmy = ResetOrgStep2DlgFrame(iComboFrameTypeID, iComboFrameSColorID, iComboFrameEColorID, iChkGradientID, iChkShadeID, iPicFrameID)
+                dmy = ResetOrgStep2DlgLink(iChkLinkID, iComboLinkTypeID, iComboLinkWidthID, iComboLinkColorID, iPicLinkID)
+                dmy = ResetOrgStep2DlgStyle(iTextStyleFileID)
+            End If
+            If identifier$ = "BtnOpen" Then
+                dmy = OpenOrgFile("")
+                dmy = ResetOrgStep2DlgTitle(iChkTitleID, iTextTitleID, iComboTitleFontID, iComboTitleSizeID, iComboTitleColorID, iPicTitleID)
+                dmy = ResetOrgStep2DlgFrame(iComboFrameTypeID, iComboFrameSColorID, iComboFrameEColorID, iChkGradientID, iChkShadeID, iPicFrameID)
+                dmy = ResetOrgStep2DlgLink(iChkLinkID, iComboLinkTypeID, iComboLinkWidthID, iComboLinkColorID, iPicLinkID)
+                dmy = ResetOrgStep2DlgStyle(iTextStyleFileID)
+            End If
+            If identifier$ = "BtnSave" Then
+                dmy = SaveOrgFile("")
+            End If
+            If identifier$ = "BtnMake" Then
+                dmy = g_CtrlExt.TitleDestroyWindow()
+                dmy = g_CtrlExt.FrameDestroyWindow()
+                dmy = g_CtrlExt.LinkDestroyWindow()
+                dmy = g_CtrlExt.ColorDestroyWindow(0)
+                dmy = g_CtrlExt.ColorDestroyWindow(1)
+                dmy = g_CtrlExt.ColorDestroyWindow(2)
+                dmy = g_CtrlExt.ColorDestroyWindow(3)
+                g_Make = 1
+                g_Prev = 0
+                OrgStep2DlgProc = 0
+            End If
+            If identifier$ = "BtnPrev" Then
+                dmy = g_CtrlExt.TitleDestroyWindow()
+                dmy = g_CtrlExt.FrameDestroyWindow()
+                dmy = g_CtrlExt.LinkDestroyWindow()
+                dmy = g_CtrlExt.ColorDestroyWindow(0)
+                dmy = g_CtrlExt.ColorDestroyWindow(1)
+                dmy = g_CtrlExt.ColorDestroyWindow(2)
+                dmy = g_CtrlExt.ColorDestroyWindow(3)
+                g_Make = 0
+                g_Prev = 1
+                OrgStep2DlgProc = 0
+            End If
+            If identifier$ = "BtnExit" Then
+                dmy = g_CtrlExt.TitleDestroyWindow()
+                dmy = g_CtrlExt.FrameDestroyWindow()
+                dmy = g_CtrlExt.LinkDestroyWindow()
+                dmy = g_CtrlExt.ColorDestroyWindow(0)
+                dmy = g_CtrlExt.ColorDestroyWindow(1)
+                dmy = g_CtrlExt.ColorDestroyWindow(2)
+                dmy = g_CtrlExt.ColorDestroyWindow(3)
+                g_Make = 0
+                g_Prev = 0
+                OrgStep2DlgProc = 0
+            End If
+
+        Case 3
+
+            If identifier$ = "TextTitle" Then
+                s_TitleText = DlgText(iTextTitleID)
+                dmy = g_CtrlExt.TitleSetText(s_TitleText)
+            End If
+            If identifier$ = "TextStyleFile" Then
+            End If
+
+        Case 4
+        Case 5
+
+    End Select
+
+End Function
+
+
+
+Sub Main
+
+    Dim iResult      As Integer
+    Dim strCmd       As String
+    Dim lFrameLeft   As Long
+    Dim lFrameTop    As Long
+    Dim lFrameRight  As Long
+    Dim lFrameBottom As Long
+
+    Set Hun70     = CreateObject("HUN70.IF")
+    Set g_CtrlExt = CreateObject("HBAEXT2K.CTRLEXT")
+    Set g_FileExt = CreateObject("HBAEXT2K.FILEEXT")
+
+    '----------------------------------------
+    ' Init system variable
+    '----------------------------------------
+    g_CurDir = CurDir
+    If Right(g_CurDir, 1) <> "\" Then
+        g_CurDir = g_CurDir + "\"
+    End If
+
+    Begin Dialog OrgStep1Dlg 280, 224, "조직도 만들기", .OrgStep1DlgProc
+        Text          4,   4,  22,   8, "조직도"
+        ListBox       4,  12,  80, 144, "가장처음"   , .ListOrg
+        Text         88,   4,  28,   8, "미리보기"
+        Picture      88,  12, 136, 139, "", 3        , .PicPreview
+'       Text          4, 160,  16,   8, "크기"
+        CheckBox      4, 160,  24,   8, "크기"       , .ChkFrameSize
+'       TextBox       4, 168,  16,  12               , .TextSize
+        DropComboBox  4, 169,  28,  64, ""           , .ComboFrameSize
+        Text         36, 160,  16,   8, "내용"
+        TextBox      36, 168, 188,  36               , .TextContent
+        PushButton  228,  12,  48,  20, "삽입"       , .BtnInsert
+        PushButton  228,  36,  48,  20, "삭제"       , .BtnDelete
+        PushButton  228,  84,  48,  20, "두개 삽입"  , .Btn2Insert
+        PushButton  228, 108,  48,  20, "세개 삽입"  , .Btn3Insert
+        PushButton  228, 132,  48,  20, "네개 삽입"  , .Btn4Insert
+'       Picture     228, 168,  48,  36, "Org.bmp", 0 , .PicLogo
+        PushButton    0, 210,  40,  14, "새 조직도"  , .BtnNew
+        PushButton   40, 210,  40,  14, "예제"       , .BtnSample
+        PushButton   80, 210,  40,  14, "불러오기...", .BtnOpen
+        PushButton  120, 210,  40,  14, "저장..."    , .BtnSave
+        PushButton  160, 210,  40,  14, "만들기"     , .BtnMake
+        PushButton  200, 210,  40,  14, "다음>"      , .BtnNext
+        PushButton  240, 210,  40,  14, "종료"       , .BtnExit
+        PushButton   88, 152,  44,  12, "기능버튼1"  , .BtnFunc1
+        PushButton  132, 152,  44,  12, "기능버튼2"  , .BtnFunc2
+        PushButton  176, 152,  44,  12, "기능버튼3"  , .BtnFunc3
+        Text  228, 168, 48, 8, "@R - 적색", .TextHelpR
+        Text  228, 176, 48, 8, "@G - 녹색", .TextHelpG
+        Text  228, 184, 48, 8, "@B - 청색", .TextHelpB
+        Text  228, 192, 48, 8, "@N - 흑색", .TextHelpN
+    End Dialog
+
+    Begin Dialog OrgStep2Dlg 280, 224, "조직도 만들기", .OrgStep2DlgProc
+        CheckBox       2,  10,  24,  8, "제목"       , .ChkTitle
+        TextBox       36,   8, 236, 12               , .TextTitle
+        Text          12,  30,  16,  8, "서체"
+        DropComboBox  36,  28,  65, 64, ""           , .ComboTitleFont
+        Text         116,  30,  16,  8, "크기"
+        DropComboBox 140,  28,  25, 64, ""           , .ComboTitleSize
+        Text          12,  50,  16,  8, "색상"
+        DropComboBox  36,  48,  49, 64, ""           , .ComboTitleColor
+        Picture      172,  28, 100, 32, "", 0        , .PicTitle
+        Text          12,  78,  16,  8, "틀"
+        DropComboBox  36,  76,  49, 64, ""           , .ComboFrameType
+        Text           8,  98,  28,  8, "시작색상"
+        DropComboBox  36,  96,  49, 64, ""           , .ComboFrameSColor
+        Text          12, 118,  22,  8, "끝색상"
+        DropComboBox  36, 116,  49, 64, ""           , .ComboFrameEColor
+        CheckBox     120,  80,  44,  8, "Gradient"   , .ChkGradient
+        CheckBox     120, 100,  32,  8, "그림자"     , .ChkShade
+        Picture      172,  76, 100, 52, "", 0        , .PicFrame
+        CheckBox       2, 146,  30,  8, "연결선"     , .ChkLink
+        DropComboBox  36, 144,  65, 64, ""           , .ComboLinkType
+        Text         112, 146,  16,  8, "굵기"
+        DropComboBox 136, 144,  29, 64, ""           , .ComboLinkWidth
+        Text          12, 166,  16,  8, "색상"
+        DropComboBox  36, 164,  49, 64, ""           , .ComboLinkColor
+        Picture      172, 144, 100, 32, "", 0        , .PicLink
+        Text           8, 190,  28,  8, "서식파일"
+        TextBox       36, 188, 154, 12               , .TextStyleFile
+        PushButton   190, 187,  40, 14, "불러오기...", .BtnOpenStyleFile
+        PushButton   230, 187,  40, 14, "저장..."    , .BtnSaveStyleFile
+        PushButton     0, 210,  40, 14, "새 조직도"  , .BtnNew
+        PushButton    40, 210,  40, 14, "예제"       , .BtnSample
+        PushButton    80, 210,  40, 14, "불러오기...", .BtnOpen
+        PushButton   120, 210,  40, 14, "저장..."    , .BtnSave
+        PushButton   160, 210,  40, 14, "만들기"     , .BtnMake
+        PushButton   200, 210,  40, 14, "<이전"      , .BtnPrev
+        PushButton   240, 210,  40, 14, "종료"       , .BtnExit
+    End Dialog
+
+    Dim DlgOrgStep1 As OrgStep1Dlg
+    Dim DlgOrgStep2 As OrgStep2Dlg
+
+    dmy = SetEnumVar()
+
+    iResult = OpenOrgFilePrev()
+    If iResult = 0 Then
+        dmy = OpenOrgFileSample()
+    End If
+
+Step_DlgOrgStep1:
+
+    Dialog DlgOrgStep1
+    If g_Next = 1 Then
+        Dialog DlgOrgStep2
+        If g_Prev = 1 Then
+            Goto Step_DlgOrgStep1
+        End If
+    End If
+    If g_Make = 1 Then
+'       dmy = Hun70.PaperSize(-1, 0, 0, 0, 1, 0)
+'       dmy = Hun70.PaperSize(-1, 0, 0, 0, 0, 0)
+'       dmy = Hun70.MaxHorizontalZoom()
+        dmy = Hun70.MaxVerticalZoom()
+
+        strCmd = Command
+        strCmd = LTrim(RTrim(strCmd))
+        If strCmd <> "" Then
+            g_iMakeMode  = 1
+            g_lMakeFrame = Val(strCmd)
+            dmy = Hun70.GetPaperSize(-1, -1, g_wdPaper, g_hgPaper)
+
+'           dmy = Hun70.GetPaperMargins(-1, g_lmPaper, g_tmPaper, g_rmPaper, g_bmPaper)
+            dmy = Hun70.GetFrameRect(-1, g_lMakeFrame, lFrameLeft, lFrameTop, lFrameRight, lFrameBottom)
+            g_lmPaper = lFrameLeft
+            g_tmPaper = lFrameTop
+            g_rmPaper = g_wdPaper - lFrameRight  - 1
+            g_bmPaper = g_hgPaper - lFrameBottom - 1
+
+            g_sxPage = g_lmPaper
+            g_syPage = g_tmPaper
+            g_exPage = g_wdPaper - g_rmPaper - 1
+            g_eyPage = g_hgPaper - g_bmPaper - 1
+            g_wdPage = g_wdPaper - g_lmPaper - g_rmPaper
+            g_hgPage = g_hgPaper - g_tmPaper - g_bmPaper
+
+            dmy = Hun70.DeleteFrame(-1, g_lMakeFrame)
+        Else
+            g_iMakeMode  = 0
+            g_lMakeFrame = 0
+            GetPaperInfo
+        End If
+                
+        SetPageInfo
+		dmy = Hun70.InitImportProc(-1, 0)
+		dmy = Hun70.UpdateDisplay(-1, 0)
+        DrawOrg
+		dmy = Hun70.InitImportProc(-1, 1)
+		dmy = Hun70.UpdateDisplay(-1, 1)
+    End If
+
+    dmy = SaveOrgFile("Org.org")
+
+End Sub

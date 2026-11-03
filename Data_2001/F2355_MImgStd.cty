@@ -1,0 +1,10 @@
+Owner=Hun70 Calendar-MonthImg
+Description=วฅมุ
+Default=TRUE
+
+PaperSize=A4
+PaperDir=Landscape
+Color=On
+Pims31Data=Off
+Logo=%PATH%SamsungLogo.gif
+Image=

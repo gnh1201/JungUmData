@@ -1,0 +1,4 @@
+// 사용자 사전
+gongbu
+nolja
+salang

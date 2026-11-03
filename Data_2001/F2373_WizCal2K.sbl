@@ -1,0 +1,4227 @@
+Option Explicit
+
+'a_CalType
+Const A_CALENDAR_MONTHSTD  = 1
+Const A_CALENDAR_MONTHCARD = 2
+Const A_CALENDAR_MONTHIMG  = 3
+Const A_CALENDAR_DAY       = 4
+Const A_CALENDAR_WEEK      = 5
+Const A_CALENDAR_YEAR      = 6
+
+'a_PaperSize
+Const A_PAPER_A3          = 1
+Const A_PAPER_A4          = 2
+Const A_PAPER_A5          = 3
+Const A_PAPER_A6          = 4
+Const A_PAPER_A6NEW       = 5
+Const A_PAPER_B4          = 6
+Const A_PAPER_B5          = 7
+Const A_PAPER_B6          = 8
+Const A_PAPER_B6NEW       = 9
+Const A_PAPER_B40         = 10
+Const A_PAPER_LETTER      = 11
+Const A_PAPER_LEGAL       = 12
+Const A_PAPER_80COL       = 13
+Const A_PAPER_132COL      = 14
+Const A_PAPER_USERDEF     = 15
+
+'a_PaperDir
+Const A_PAPER_LANDSCAPE   = 1
+Const A_PAPER_PORTRAIT    = 2
+
+'g_WizState
+Const A_STATE_PREV        = 1
+Const A_STATE_NEXT        = 2
+Const A_STATE_MAKE        = 3
+Const A_STATE_CANCEL      = 4
+
+Global a_CalType        As Integer
+Global a_PaperSize      As Integer
+Global a_PaperDir       As Integer
+Global a_StyleList(100) As String
+Global a_StyleCount     As Integer
+Global a_StyleSelect    As Integer
+Global a_StyleFile(100) As String
+Global a_Desc1          As String
+Global a_Desc2          As String
+
+Global a_Year1          As Integer
+Global a_Month1         As Integer
+Global a_Day1           As Integer
+Global a_Year2          As Integer
+Global a_Month2         As Integer
+Global a_Day2           As Integer
+Global a_CurrDoc        As Integer
+Global a_Color          As Integer
+Global a_Pims31Data     As Integer
+Global a_Date           As Integer
+Global a_Logo           As String
+
+Global a_Image          As String
+
+Global a_FileExt        As Object
+
+Global a_CurDir         As String
+Global a_Step           As Integer
+Global a_bBtnPrev       As Integer
+Global a_bBtnNext       As Integer
+Global a_bBtnMake       As Integer
+Global a_bBtnCancel     As Integer
+Global g_WizState       As Integer
+
+Global c_FrameID        As Integer
+
+Global g_IsPimsInstalled As Integer
+
+Function a_GetMonthDay(iYear As Integer, iMonth As Integer) As Integer
+
+    Select Case iMonth
+        Case 1
+            a_GetMonthDay = 31
+        Case 2
+            If (iYear Mod 4) = 0 Then
+                If (iYear Mod 100) = 0 Then
+                    If (iYear Mod 400) = 0 Then
+                        a_GetMonthDay = 29
+                    Else
+                        a_GetMonthDay = 28
+                    End If
+                Else
+                    a_GetMonthDay = 29
+                End If
+            Else
+                a_GetMonthDay = 28
+            End If
+        Case 3
+            a_GetMonthDay = 31
+        Case 4
+            a_GetMonthDay = 30
+        Case 5
+            a_GetMonthDay = 31
+        Case 6
+            a_GetMonthDay = 30
+        Case 7
+            a_GetMonthDay = 31
+        Case 8
+            a_GetMonthDay = 31
+        Case 9
+            a_GetMonthDay = 30
+        Case 10
+            a_GetMonthDay = 31
+        Case 11
+            a_GetMonthDay = 30
+        Case 12
+            a_GetMonthDay = 31
+    End Select
+
+End Function
+
+'--------------------------------------------------------------------------------TTI Walk
+Const B_MAX_NUM_FILES = 100
+Const B_MAX_NUM_ITEM  = 100
+Const B_MAX_NUM_CHILD = 100
+
+Global b_Files(B_MAX_NUM_FILES)                 As String
+Global b_Count                                  As Integer
+Global b_Item(B_MAX_NUM_ITEM)                   As String
+Global b_Value(B_MAX_NUM_ITEM)                  As String
+Global b_Parent(B_MAX_NUM_ITEM)                 As Integer
+Global b_Child(B_MAX_NUM_ITEM, B_MAX_NUM_CHILD) As Integer
+
+Sub DirWalk(strPath As String)
+    Dim strDir  As String
+    Dim strFile As String
+    strDir = CurDir
+    If Right(CurDir, 1) <> "\" Then
+        strDir = strDir + "\"
+    End If
+    If Instr(strPath, ":") = 0 And Instr(strPath, "\\") = 0 Then   'No drive specified.
+        strPath = strDir + strPath
+    End If
+    b_Count = 0
+    strFile = Dir(strPath)
+    Do While strFile <> "" And b_Count <= 100
+        b_Files(b_Count) = strDir + strFile
+        b_Count = b_Count + 1
+        strFile = Dir
+    Loop
+End Sub
+
+Sub GetItemAndValue(strLine As String, iDepth As Integer, strItem As String, strValue As String)
+    Dim strLineCopy As String
+    Dim iLenOrg     As Integer
+    Dim iAssignPos  As Integer
+    strLineCopy = strLine
+    iLenOrg = Len(strLineCopy)
+    strLineCopy = LTrim(strLineCopy)
+    iDepth = iLenOrg - Len(strLineCopy)
+    iAssignPos = Instr(strLineCopy, "=")
+    If iAssignPos = 0 Then
+        strItem  = RTrim(strLineCopy)
+        strValue = ""
+    Else
+        strItem  = RTrim(Left(strLineCopy, iAssignPos - 1))
+        strValue = RTrim(LTrim(Mid(strLineCopy, iAssignPos + 1)))
+    End If
+End Sub
+
+Function CheckTtiHeader(strFile As String, strItem As String, strValue As String) As Integer
+    Dim strItemCopy  As String
+    Dim strValueCopy As String
+    Dim iRetValue    As Integer
+    Dim strLine      As String
+    Dim iDepth       As Integer   'Header이므로 사용안함
+    Dim strItemTmp   As String
+    Dim strValueTmp  As String
+    strItemCopy  = RTrim(LTrim(strItem))
+    strValueCopy = RTrim(LTrim(strValue))
+    iRetValue    = 0
+    Open strFile for Input As #1
+    Line Input #1, strLine
+    Do While (Not Eof(1)) And strLine <> ""
+        GetItemAndValue strLine, iDepth, strItemTmp, strValueTmp
+        If strItemTmp = strItemCopy And strValueTmp = strValueCopy Then
+            iRetValue = 1
+            Exit Do
+        Else
+            Line Input #1, strLine
+        End If
+    Loop
+    Close #1
+    CheckTtiHeader = iRetValue
+End Function
+
+Function GetTtiHeaderValue(strFile As String, strItem As String) As String
+    Dim strItemCopy  As String
+    Dim strRetValue  As String
+    Dim strLine      As String
+    Dim iDepth       As Integer   'Header이므로 사용안함
+    Dim strItemTmp   As String
+    Dim strValueTmp  As String
+    strItemCopy  = RTrim(LTrim(strItem))
+    Open strFile for Input As #1
+    strLine = "Empty"
+    Do While (Not Eof(1)) And strLine <> ""
+        Line Input #1, strLine
+        GetItemAndValue strLine, iDepth, strItemTmp, strValueTmp
+        If strItemTmp = strItemCopy Then
+            strRetValue = strValueTmp
+            Exit Do
+        End If
+    Loop
+    Close #1
+    GetTtiHeaderValue = strRetValue
+End Function
+
+Function GetTtiBodyValue(strFile As String, strItem As String) As String
+    Dim strItemCopy  As String
+    Dim strRetValue  As String
+    Dim strLine      As String
+    Dim iDepth       As Integer   'Header이므로 사용안함
+    Dim strItemTmp   As String
+    Dim strValueTmp  As String
+    strItemCopy  = RTrim(LTrim(strItem))
+    Open strFile for Input As #1
+    strLine = "Empty"
+    Do While (Not Eof(1)) And strLine <> ""   'Skip Header
+        Line Input #1, strLine
+    Loop
+    If Not Eof(1) Then
+        strLine = "Empty"
+        Do While (Not Eof(1)) And strLine <> ""
+            Line Input #1, strLine
+            GetItemAndValue strLine, iDepth, strItemTmp, strValueTmp
+            If strItemTmp = strItemCopy Then
+                strRetValue = strValueTmp
+                Exit Do
+            End If
+        Loop
+    End If
+    Close #1
+    GetTtiBodyValue = strRetValue
+End Function
+'--------------------------------------------------------------------------------TTI Walk
+
+Function GetArrListStyle(iListStyleID As Integer) As Integer
+
+    '------------------------------------------------------------
+    ' Header에 default라고 명시된 item index를 return한다.
+    '------------------------------------------------------------
+    Dim iIndex            As Integer
+  ReDim ArrListStyle(100) As String
+    Dim strOwner          As String
+    Dim strValue          As String
+    Dim iCount            As Integer
+    Dim iSelect           As Integer
+
+    Select Case a_CalType
+        Case A_CALENDAR_DAY
+            strOwner = "Hun70 Calendar-Day"
+        Case A_CALENDAR_WEEK
+            strOwner = "Hun70 Calendar-Week"
+        Case A_CALENDAR_MONTHSTD
+            strOwner = "Hun70 Calendar-MonthStd"
+        Case A_CALENDAR_MONTHCARD
+            strOwner = "Hun70 Calendar-MonthCard"
+        Case A_CALENDAR_MONTHIMG
+            strOwner = "Hun70 Calendar-MonthImg"
+        Case A_CALENDAR_YEAR
+            strOwner = "Hun70 Calendar-Year"
+    End Select
+    iCount  = 0
+    iSelect = 0
+
+    DirWalk "*.cty"
+
+    For iIndex = 0 To b_Count - 1
+
+        If CheckTtiHeader(b_Files(iIndex), "Owner", strOwner) = 1 Then
+            strValue = GetTtiHeaderValue(b_Files(iIndex), "Description")
+            If strValue <> "" Then
+                ArrListStyle(iCount) = strValue
+                a_StyleFile(iCount)  = b_Files(iIndex)
+                strValue = GetTtiHeaderValue(b_Files(iIndex), "Default")
+                If strValue = "TRUE" Then
+                    iSelect = iCount
+                End If
+                iCount = iCount + 1
+            End If
+        End If
+
+    Next iIndex
+
+    If iCount > 0 Then
+        ReDim Preserve ArrListStyle(iCount - 1)
+    Else
+        ReDim ArrListStyle(0)
+    End If
+    DlgListBoxArray iListStyleID, ArrListStyle
+
+    a_StyleCount    = iCount
+    '----------------------------------------------------------------------
+    ' a_StyleSelect는 이 함수를 부른 곳에서 리턴값을 가지고 수정한다.
+    '----------------------------------------------------------------------
+
+    '----------------------------------------
+    ' May be default item.
+    '----------------------------------------
+    GetArrListStyle = iSelect
+
+End Function
+
+Sub LoadStyle(strFile As String)
+
+    Dim strPaperSize  As String
+    Dim strPaperDir   As String
+    Dim strColor      As String
+    Dim strPims31Data As String
+    Dim strDate       As String
+    Dim strLogo       As String
+    Dim strImage      As String
+
+    strPaperSize  = GetTtiBodyValue(strFile, "PaperSize")
+    strPaperDir   = GetTtiBodyValue(strFile, "PaperDir")
+    strColor      = GetTtiBodyValue(strFile, "Color")
+    strPims31Data = GetTtiBodyValue(strFile, "Pims31Data")
+    strDate       = GetTtiBodyValue(strFile, "Date")
+    strLogo       = GetTtiBodyValue(strFile, "Logo")
+    strImage      = GetTtiBodyValue(strFile, "Image")
+
+    Select Case strPaperSize
+        Case "A3"
+            a_PaperSize = A_PAPER_A3
+        Case "A4"
+            a_PaperSize = A_PAPER_A4
+        Case "A5"
+            a_PaperSize = A_PAPER_A5
+        Case "A6"
+            a_PaperSize = A_PAPER_A6
+        Case "A6신"
+            a_PaperSize = A_PAPER_A6NEW
+        Case "B4"
+            a_PaperSize = A_PAPER_B4
+        Case "B5"
+            a_PaperSize = A_PAPER_B5
+        Case "B6"
+            a_PaperSize = A_PAPER_B6
+        Case "B6신"
+            a_PaperSize = A_PAPER_B6NEW
+        Case "B40"
+            a_PaperSize = A_PAPER_B40
+        Case "Letter"
+            a_PaperSize = A_PAPER_LETTER
+        Case "Legal"
+            a_PaperSize = A_PAPER_LEGAL
+        Case "80컬럼"
+            a_PaperSize = A_PAPER_80COL
+        Case "132컬럼"
+            a_PaperSize = A_PAPER_132COL
+        Case "사용자정의"
+            a_PaperSize = A_PAPER_USERDEF
+        Case Else
+            '----------------------------------------
+            ' Default Value
+            '----------------------------------------
+            strPaperSize = "A4"
+            a_PaperSize  = A_PAPER_A4
+    End Select
+
+    Select Case strPaperDir
+        Case "Landscape"
+            a_PaperDir = A_PAPER_LANDSCAPE
+        Case "Portrait"
+            a_PaperDir = A_PAPER_PORTRAIT
+        Case Else
+            '----------------------------------------
+            ' Default Value
+            '----------------------------------------
+            strPaperDir = "Portrait"
+            a_PaperDir  = A_PAPER_PORTRAIT
+    End Select
+
+    Select Case strColor
+        Case "On"
+            a_Color = 1
+        Case "Off"
+            a_Color = 0
+        Case Else
+            '----------------------------------------
+            ' Default Value
+            '----------------------------------------
+            strColor = "On"
+            a_Color  = 1
+    End Select
+
+    Select Case strPims31Data
+        Case "On"
+            a_Pims31Data = 1
+        Case "Off"
+            a_Pims31Data = 0
+        Case Else
+            '----------------------------------------
+            ' Default Value
+            '----------------------------------------
+            strPims31Data = "Off"
+            a_Pims31Data  = 0
+    End Select
+
+    If a_CalType = A_CALENDAR_MONTHSTD Or a_CalType = A_CALENDAR_MONTHCARD Or a_CalType = A_CALENDAR_WEEK Then
+        a_Date = Val(Trim(strDate))
+    Else
+        a_Date = -1
+    End If
+
+    If a_CalType = A_CALENDAR_MONTHSTD Or a_CalType = A_CALENDAR_MONTHCARD Or a_CalType = A_CALENDAR_MONTHIMG Then
+        If Instr(strLogo, "%PATH%") > 0 Then
+            strLogo = Left(strLogo, Instr(strLogo, "%PATH%") - 1) + a_CurDir + Mid(strLogo, Instr(strLogo, "%PATH%") + 6)
+        End If
+        a_Logo = strLogo
+    Else
+        a_Logo = ""
+    End If
+
+    If a_CalType = A_CALENDAR_MONTHIMG Then
+        If strImage = "" Then
+            If Month(Now()) = 3 Or Month(Now()) = 4 Or Month(Now()) = 5 Then
+                strImage = "%PATH%봄.bmp"
+            End If
+            If Month(Now()) = 6 Or Month(Now()) = 7 Or Month(Now()) = 8 Then
+                strImage = "%PATH%여름.bmp"
+            End If
+            If Month(Now()) = 9 Or Month(Now()) = 10 Or Month(Now()) = 11 Then
+                strImage = "%PATH%가을.bmp"
+            End If
+            If Month(Now()) = 12 Or Month(Now()) = 1 Or Month(Now()) = 2 Then
+                strImage = "%PATH%겨울.bmp"
+            End If
+            If Instr(strImage, "%PATH%") > 0 Then
+                strImage = Left(strImage, Instr(strImage, "%PATH%") - 1) + a_CurDir + Mid(strImage, Instr(strImage, "%PATH%") + 6)
+            End If
+        End If
+        a_Image = strImage
+    Else
+        a_Image = ""
+    End If
+
+End Sub
+
+Sub GetDesc(strDesc1 As String, strDesc2 As String)
+
+    Dim strDesc(1)    As String
+    Dim iDescIdx      As Integer
+    Dim strPaperSize  As String
+    Dim strPaperDir   As String
+    Dim strColor      As String
+    Dim strPims31Data As String
+
+    iDescIdx = 0
+    strDesc(0) = ""
+    strDesc(1) = ""
+    strDesc(iDescIdx) = "용지는 "
+
+    Select Case a_PaperSize
+        Case A_PAPER_A3
+            strPaperSize = "A3"
+        Case A_PAPER_A4
+            strPaperSize = "A4"
+        Case A_PAPER_A5
+            strPaperSize = "A5"
+        Case A_PAPER_A6
+            strPaperSize = "A6"
+        Case A_PAPER_A6NEW
+            strPaperSize = "A6신"
+        Case A_PAPER_B4
+            strPaperSize = "B4"
+        Case A_PAPER_B5
+            strPaperSize = "B5"
+        Case A_PAPER_B6
+            strPaperSize = "B6"
+        Case A_PAPER_B6NEW
+            strPaperSize = "B6신"
+        Case A_PAPER_B40
+            strPaperSize = "B40"
+        Case A_PAPER_LETTER
+            strPaperSize = "Letter"
+        Case A_PAPER_LEGAL
+            strPaperSize = "Legal"
+        Case A_PAPER_80COL
+            strPaperSize = "80컬럼"
+        Case A_PAPER_132COL
+            strPaperSize = "132컬럼"
+        Case A_PAPER_USERDEF
+            strPaperSize = "사용자정의"
+        Case Else
+            a_PaperSize  = A_PAPER_A4
+            strPaperSize = "A4"
+    End Select
+
+    strDesc(iDescIdx) = strDesc(iDescIdx) + strPaperSize + "-"
+
+    Select Case a_PaperDir
+        Case A_PAPER_LANDSCAPE
+            strPaperDir = "가로"
+        Case A_PAPER_PORTRAIT
+            strPaperDir = "세로"
+        Case Else
+            a_PaperDir = A_PAPER_PORTRAIT
+            strPaperDir = "가로"
+    End Select
+
+    strDesc(iDescIdx) = strDesc(iDescIdx) + strPaperDir
+
+    Select Case a_Color
+        Case 1
+            strColor = ", 컬러 인쇄"
+        Case 0
+            strColor = ", 흑백 인쇄"
+        Case Else
+            a_Color = 1
+            strColor = ", 컬러 인쇄"
+    End Select
+
+    strDesc(iDescIdx) = strDesc(iDescIdx) + strColor
+
+    Select Case a_Pims31Data
+        Case 1
+            iDescIdx = iDescIdx + 1
+            strPims31Data = ", 훈민 스케쥴러 데이터를 읽어"
+        Case 0
+            strPims31Data = "로"
+        Case Else
+            a_Pims31Data = 0
+            strPims31Data = "로"
+    End Select
+
+    strDesc(iDescIdx) = strDesc(iDescIdx) + strPims31Data
+
+    strDesc(iDescIdx) = strDesc(iDescIdx) + " 작성합니다."
+
+    strDesc1 = strDesc(0)
+    strDesc2 = strDesc(1)
+
+End Sub
+
+Sub ResetTypeDlg(iPicExamID, iBtnPrevID, iBtnNextID, iBtnMakeID, iBtnCancelID, iOptGrpTypeID, iOptGrpDirID, iListStyleID, iTextDesc1ID, iTextDesc2ID As Integer)
+
+    Dim strPre As String
+
+    '------------------------------------------------------------
+    ' iPicExamID는 a_CalType의 verification이 끝나야 사용할 수
+    ' 있으므로 뒤로 옮겼다.
+    '------------------------------------------------------------
+    If iBtnPrevID >= 0 Then
+        If a_bBtnPrev <> 0 And a_bBtnPrev <> 1 Then
+            a_bBtnPrev = 0
+        End If
+        DlgEnable iBtnPrevID, a_bBtnPrev
+    End If
+
+    If iBtnNextID >= 0 Then
+        If a_bBtnNext <> 0 And a_bBtnNext <> 1 Then
+            a_bBtnNext = 0
+        End If
+        DlgEnable iBtnNextID, a_bBtnNext
+    End If
+
+    If iBtnMakeID >= 0 Then
+        If a_bBtnMake <> 0 And a_bBtnMake <> 1 Then
+            a_bBtnMake = 0
+        End If
+        DlgEnable iBtnMakeID, a_bBtnMake
+    End If
+
+    If iBtnCancelID >= 0 Then
+        If a_bBtnCancel <> 0 And a_bBtnCancel <> 1 Then
+            a_bBtnCancel = 0
+        End If
+        DlgEnable iBtnCancelID, a_bBtnCancel
+    End If
+
+    If iOptGrpTypeID >= 0 Then
+        Select Case a_CalType
+            Case A_CALENDAR_DAY
+            Case A_CALENDAR_WEEK
+            Case A_CALENDAR_MONTHSTD
+            Case A_CALENDAR_MONTHCARD
+            Case A_CALENDAR_MONTHIMG
+            Case A_CALENDAR_YEAR
+            Case Else
+                a_CalType = A_CALENDAR_MONTHSTD
+        End Select
+        DlgValue iOptGrpTypeID, a_CalType - 1
+    End If
+
+    If iListStyleID >= 0 Then
+        Dim iSelect As Integer
+        iSelect = GetArrListStyle(iListStyleID)
+        If a_StyleSelect = -1 Then
+            a_StyleSelect = iSelect
+        End If
+        DlgValue iListStyleID, a_StyleSelect
+        LoadStyle a_StyleFile(a_StyleSelect)
+        '------------------------------------------------------------!WARNING!
+        ' ListStyle가 바뀌면 a_StyleSelect도 바뀌고
+        ' TextDesc1,TextDesc2도 바뀌기 때문에 iTextDesc1ID,iTextDesc2ID도
+        ' 같이 지정해야 한다.
+        '------------------------------------------------------------
+    End If
+
+    If iOptGrpDirID >= 0 Then
+        '--------------------------------------------------
+        ' a_PaperDir은 위에서 LoadStyle한 후 변경된다.
+        '--------------------------------------------------
+        Select Case a_PaperDir
+            Case A_PAPER_LANDSCAPE
+            Case A_PAPER_PORTRAIT
+            Case Else
+                a_PaperDir = A_PAPER_LANDSCAPE
+        End Select
+        DlgValue iOptGrpDirID, a_PaperDir - 1
+    End If
+
+    If iTextDesc1ID >= 0 And iTextDesc2ID >= 0 Then
+        GetDesc a_Desc1, a_Desc2
+        DlgText iTextDesc1ID, a_Desc1
+        DlgText iTextDesc2ID, a_Desc2
+    End If
+
+    If iPicExamID >= 0 Then
+        '------------------------------------------------------------
+        ' 사용자가 지정한 여러 Calendar 정보를 참고로 그림을 바꾼다.
+        '------------------------------------------------------------
+        Select Case a_PaperDir
+            Case A_PAPER_LANDSCAPE
+                strPre = "l"
+            Case A_PAPER_PORTRAIT
+                strPre = "p"
+        End Select
+        Select Case a_CalType
+            Case A_CALENDAR_DAY
+                DlgSetPicture iPicExamID, a_CurDir + strPre + "d.bmp", 0
+            Case A_CALENDAR_WEEK
+                DlgSetPicture iPicExamID, a_CurDir + strPre + "w.bmp", 0
+            Case A_CALENDAR_MONTHSTD
+                DlgSetPicture iPicExamID, a_CurDir + strPre + "mt.bmp", 0
+            Case A_CALENDAR_MONTHCARD
+                DlgSetPicture iPicExamID, a_CurDir + strPre + "mf.bmp", 0
+            Case A_CALENDAR_MONTHIMG
+                DlgSetPicture iPicExamID, a_CurDir + strPre + "mi.bmp", 0
+            Case A_CALENDAR_YEAR
+                DlgSetPicture iPicExamID, a_CurDir + strPre + "y.bmp", 0
+        End Select
+    End If
+
+End Sub
+
+Function SetTypeDlgProc(identifier$, action, suppvalue)
+
+    Dim iPicExamID       As Integer
+    Dim iBtnPrevID       As Integer
+    Dim iBtnNextID       As Integer
+    Dim iBtnMakeID       As Integer
+    Dim iBtnCancelID     As Integer
+
+    Dim iOptGrpTypeID    As Integer
+    Dim iOptGrpDirID     As Integer
+    Dim iListStyleID     As Integer
+    Dim iTextDesc1ID     As Integer
+    Dim iTextDesc2ID     As Integer
+
+    iPicExamID    = DlgControlID("PicExam")
+    iBtnPrevID    = DlgControlID("BtnPrev")
+    iBtnNextID    = DlgControlID("BtnNext")
+    iBtnMakeID    = DlgControlID("BtnMake")
+    iBtnCancelID  = DlgControlID("BtnCancel")
+
+    iOptGrpTypeID = DlgControlID("OptGrpType")
+    iOptGrpDirID  = DlgControlID("OptGrpDir")
+    iListStyleID  = DlgControlID("ListStyle")
+    iTextDesc1ID  = DlgControlID("TextDesc1")
+    iTextDesc2ID  = DlgControlID("TextDesc2")
+
+    SetTypeDlgProc = 1
+
+    Select Case action
+
+        Case 1
+
+            ResetTypeDlg iPicExamID, iBtnPrevID, iBtnNextID, iBtnMakeID, iBtnCancelID, iOptGrpTypeID, iOptGrpDirID, iListStyleID, iTextDesc1ID, iTextDesc2ID
+
+        Case 2
+
+            If identifier$ = "BtnPrev" Then
+                g_WizState = A_STATE_PREV
+                SetTypeDlgProc = 0
+            End If
+            If identifier$ = "BtnNext" Then
+                g_WizState = A_STATE_NEXT
+                SetTypeDlgProc = 0
+            End If
+            If identifier$ = "BtnMake" Then
+                g_WizState = A_STATE_MAKE
+                SetTypeDlgProc = 0
+            End If
+            If identifier$ = "BtnCancel" Then
+                g_WizState = A_STATE_CANCEL
+                SetTypeDlgProc = 0
+            End If
+
+            If identifier$ = "OptMonthStd" Then
+                a_CalType = A_CALENDAR_MONTHSTD
+                a_StyleSelect = -1
+                ResetTypeDlg iPicExamID, -1, -1, -1, -1, iOptGrpTypeID, iOptGrpDirID, iListStyleID, iTextDesc1ID, iTextDesc2ID
+            End If
+            If identifier$ = "OptMonthCard" Then
+                a_CalType = A_CALENDAR_MONTHCARD
+                a_StyleSelect = -1
+                ResetTypeDlg iPicExamID, -1, -1, -1, -1, iOptGrpTypeID, iOptGrpDirID, iListStyleID, iTextDesc1ID, iTextDesc2ID
+            End If
+            If identifier$ = "OptMonthImg" Then
+                a_CalType = A_CALENDAR_MONTHIMG
+                a_StyleSelect = -1
+                ResetTypeDlg iPicExamID, -1, -1, -1, -1, iOptGrpTypeID, iOptGrpDirID, iListStyleID, iTextDesc1ID, iTextDesc2ID
+            End If
+            If identifier$ = "OptDay" Then
+                a_CalType = A_CALENDAR_DAY
+                a_StyleSelect = -1
+                ResetTypeDlg iPicExamID, -1, -1, -1, -1, iOptGrpTypeID, iOptGrpDirID, iListStyleID, iTextDesc1ID, iTextDesc2ID
+            End If
+            If identifier$ = "OptWeek" Then
+                a_CalType = A_CALENDAR_WEEK
+                a_StyleSelect = -1
+                ResetTypeDlg iPicExamID, -1, -1, -1, -1, iOptGrpTypeID, iOptGrpDirID, iListStyleID, iTextDesc1ID, iTextDesc2ID
+            End If
+            If identifier$ = "OptYear" Then
+                a_CalType = A_CALENDAR_YEAR
+                a_StyleSelect = -1
+                ResetTypeDlg iPicExamID, -1, -1, -1, -1, iOptGrpTypeID, iOptGrpDirID, iListStyleID, iTextDesc1ID, iTextDesc2ID
+            End If
+            If identifier$ = "OptLandscape" Then
+                a_PaperDir = A_PAPER_LANDSCAPE
+                ResetTypeDlg iPicExamID, -1, -1, -1, -1, -1, -1, -1, iTextDesc1ID, iTextDesc2ID
+            End If
+            If identifier$ = "OptPortrait" Then
+                a_PaperDir = A_PAPER_PORTRAIT
+                ResetTypeDlg iPicExamID, -1, -1, -1, -1, -1, -1, -1, iTextDesc1ID, iTextDesc2ID
+            End If
+            If identifier$ = "ListStyle" Then
+                a_StyleSelect = suppvalue
+                DlgValue iListStyleID, a_StyleSelect
+                LoadStyle a_StyleFile(a_StyleSelect)
+                ResetTypeDlg iPicExamID, -1, -1, -1, -1, -1, iOptGrpDirID, -1, iTextDesc1ID, iTextDesc2ID
+            End If
+
+        Case 3
+        Case 4
+        Case 5
+
+    End Select
+
+End Function
+
+Sub SetType
+
+    Begin Dialog SetTypeDlg 288, 192, "달력 만들기 - 기본 형태 선택", .SetTypeDlgProc
+
+        Picture      4,   4, 100, 150, a_CurDir + "lmt.bmp", 0, .PicExam
+        Picture      4, 152, 280,  16, a_CurDir + "Sep.bmp", 0, .PicSep
+        PushButton  34, 172,  50,  14, "<이전" , .BtnPrev
+        PushButton  90, 172,  50,  14, "다음>" , .BtnNext
+        PushButton 146, 172,  50,  14, "만들기", .BtnMake
+        PushButton 202, 172,  50,  14, "취소"  , .BtnCancel
+
+        Text 112, 4, 168, 8, Trim(Str(a_Step)) + ". 달력의 기본 형태를 구성합니다."
+
+        GroupBox 112, 16, 120, 44, "종류", .GrpType
+        OptionGroup .OptGrpType
+            OptionButton 124, 26, 48, 8, "월 (표준형)", .OptMonthStd
+            OptionButton 124, 36, 48, 8, "월 (카드형)", .OptMonthCard
+            OptionButton 124, 46, 48, 8, "월 (그림형)", .OptMonthImg
+            OptionButton 180, 26, 48, 8, "일"         , .OptDay
+            OptionButton 180, 36, 48, 8, "주"         , .OptWeek
+            OptionButton 180, 46, 48, 8, "년"         , .OptYear
+
+        GroupBox 240, 16, 40, 44, "방향", .GrpDir
+        OptionGroup .OptGrpDir
+            OptionButton 248, 28, 24, 10, "가로", .OptLandscape
+            OptionButton 248, 42, 24, 10, "세로", .OptPortrait
+
+        Text    116,  65,  24, 10, "스타일"
+        ListBox 112,  75, 168, 38, "", .ListStyle
+
+        Text 112, 124, 168,  8, "", .TextDesc1
+        Text 112, 136, 168,  8, "", .TextDesc2
+
+    End Dialog
+
+    Dim DlgSetType As SetTypeDlg
+
+    Dialog DlgSetType
+
+End Sub
+
+Sub ResetOptionDlg(iPicExamID, iBtnPrevID, iBtnNextID, iBtnMakeID, iBtnCancelID, iEditYear1ID, iEditMonth1ID, iEditDay1ID, iEditYear2ID, iEditMonth2ID, iEditDay2ID, iChkCurrDocID, iChkColorID, iChkPims31DataID, iComboDateID, iEditLogoID, iBtnBrowseID, iBtnSaveID As Integer)
+
+    Dim strPre As String
+
+    If iBtnPrevID >= 0 Then
+        If a_bBtnPrev <> 0 And a_bBtnPrev <> 1 Then
+            a_bBtnPrev = 0
+        End If
+        DlgEnable iBtnPrevID, a_bBtnPrev
+    End If
+
+    If iBtnNextID >= 0 Then
+        If a_bBtnNext <> 0 And a_bBtnNext <> 1 Then
+            a_bBtnNext = 0
+        End If
+        DlgEnable iBtnNextID, a_bBtnNext
+    End If
+
+    If iBtnMakeID >= 0 Then
+        If a_bBtnMake <> 0 And a_bBtnMake <> 1 Then
+            a_bBtnMake = 0
+        End If
+        DlgEnable iBtnMakeID, a_bBtnMake
+    End If
+
+    If iBtnCancelID >= 0 Then
+        If a_bBtnCancel <> 0 And a_bBtnCancel <> 1 Then
+            a_bBtnCancel = 0
+        End If
+        DlgEnable iBtnCancelID, a_bBtnCancel
+    End If
+
+    If iEditYear1ID >= 0 Then
+        DlgText iEditYear1ID, Trim(Str(a_Year1))
+    End If
+
+    If iEditMonth1ID >= 0 Then
+        If a_Month1 < 1 Then
+            a_Month1 = 1
+        End If
+        If a_Month1 > 12 Then
+            a_Month1 = 12
+        End If
+        DlgText iEditMonth1ID, Trim(Str(a_Month1))
+    End If
+
+    If iEditDay1ID >= 0 Then
+        If a_Day1 < 1 Then
+            a_Day1 = 1
+        End If
+        If a_Day1 > a_GetMonthDay(a_Year1, a_Month1) Then
+            a_Day1 = a_GetMonthDay(a_Year1, a_Month1)
+        End If
+        DlgText iEditDay1ID, Trim(Str(a_Day1))
+    End If
+
+    If iEditYear2ID >= 0 Then
+        DlgText iEditYear2ID, Trim(Str(a_Year2))
+    End If
+
+    If iEditMonth2ID >= 0 Then
+        If a_Month2 < 1 Then
+            a_Month2 = 1
+        End If
+        If a_Month2 > 12 Then
+            a_Month2 = 12
+        End If
+        DlgText iEditMonth2ID, Trim(Str(a_Month2))
+    End If
+
+    If iEditDay2ID >= 0 Then
+        If a_Day2 < 1 Then
+            a_Day2 = 1
+        End If
+        If a_Day2 > a_GetMonthDay(a_Year2, a_Month2) Then
+            a_Day2 = a_GetMonthDay(a_Year2, a_Month2)
+        End If
+        DlgText iEditDay2ID, Trim(Str(a_Day2))
+    End If
+
+    If iChkCurrDocID >= 0 Then
+        If a_CurrDoc <> 0 And a_CurrDoc <> 1 Then
+            a_CurrDoc = 0
+        End If
+        DlgValue iChkCurrDocID, a_CurrDoc
+    End If
+
+    If iChkColorID >= 0 Then
+        If a_Color <> 0 And a_Color <> 1 Then
+            a_Color = 1
+        End If
+        DlgValue iChkColorID, a_Color
+    End If
+
+    If iChkPims31DataID >= 0 Then
+        If a_Pims31Data <> 0 And a_Pims31Data <> 1 Then
+            a_Pims31Data = 0
+        End If
+        DlgValue iChkPims31DataID, a_Pims31Data
+    End If
+
+    If iComboDateID >= 0 Then
+        If a_CalType = A_CALENDAR_MONTHSTD Or a_CalType = A_CALENDAR_MONTHCARD Or a_CalType = A_CALENDAR_WEEK Then
+            DlgEnable iComboDateID, 1
+            DlgValue  iComboDateID, a_Date
+        Else
+            DlgEnable iComboDateID, 0
+        End If
+    End If
+
+    If iEditLogoID >= 0 Then
+        If a_CalType = A_CALENDAR_MONTHSTD Or a_CalType = A_CALENDAR_MONTHCARD Or a_CalType = A_CALENDAR_MONTHIMG Then
+            DlgEnable iEditLogoID , 1
+            DlgEnable iBtnBrowseID, 1
+            DlgText   iEditLogoID , a_Logo
+        Else
+            DlgEnable iEditLogoID , 0
+            DlgEnable iBtnBrowseID, 0
+        End If
+    End If
+
+    If iBtnSaveID >= 0 Then
+        If a_CalType = A_CALENDAR_MONTHIMG Then
+            DlgVisible iBtnSaveID, 0   'SetImage에서 저장...
+        Else
+            DlgVisible iBtnSaveID, 1
+        End If
+    End If
+
+    If iPicExamID >= 0 Then
+        '------------------------------------------------------------
+        ' 사용자가 지정한 여러 Calendar 정보를 참고로 그림을 바꾼다.
+        '------------------------------------------------------------
+        Select Case a_PaperDir
+            Case A_PAPER_LANDSCAPE
+                strPre = "l"
+            Case A_PAPER_PORTRAIT
+                strPre = "p"
+        End Select
+        Select Case a_CalType
+            Case A_CALENDAR_DAY
+                DlgSetPicture iPicExamID, a_CurDir + strPre + "d.bmp", 0
+            Case A_CALENDAR_WEEK
+                DlgSetPicture iPicExamID, a_CurDir + strPre + "w.bmp", 0
+            Case A_CALENDAR_MONTHSTD
+                DlgSetPicture iPicExamID, a_CurDir + strPre + "mt.bmp", 0
+            Case A_CALENDAR_MONTHCARD
+                DlgSetPicture iPicExamID, a_CurDir + strPre + "mf.bmp", 0
+            Case A_CALENDAR_MONTHIMG
+                DlgSetPicture iPicExamID, a_CurDir + strPre + "mi.bmp", 0
+            Case A_CALENDAR_YEAR
+                DlgSetPicture iPicExamID, a_CurDir + strPre + "y.bmp", 0
+        End Select
+    End If
+
+End Sub
+
+Sub WriteCty
+
+    Dim strCtyFile    As String
+    Dim strOwner      As String
+    Dim strPaperSize  As String
+    Dim strPaperDir   As String
+    Dim strColor      As String
+    Dim strPims31Data As String
+	Dim Dmy           As Integer
+
+	If Not a_FileExt.BeginChangeDirectory("%SysScript%", 1) Then
+        Goto Step_EndWrite
+	End If
+
+    strCtyFile = a_FileExt.FileDialog(0, "*.cty", "", "Calendar Style Files (*.cty)|*.cty|All Files (*.*)|*.*||")
+    If strCtyFile = "" Then
+        Goto Step_EndWrite
+    End If
+
+    Open strCtyFile for Output As #1
+
+Step_WriteOwner:
+    Select Case a_CalType
+        Case A_CALENDAR_MONTHSTD
+            strOwner = "Hun70 Calendar-MonthStd"
+        Case A_CALENDAR_MONTHCARD
+            strOwner = "Hun70 Calendar-MonthCard"
+        Case A_CALENDAR_MONTHIMG
+            strOwner = "Hun70 Calendar-MonthImg"
+        Case A_CALENDAR_DAY
+            strOwner = "Hun70 Calendar-Day"
+        Case A_CALENDAR_WEEK
+            strOwner = "Hun70 Calendar-Week"
+        Case A_CALENDAR_YEAR
+            strOwner = "Hun70 Calendar-Year"
+        Case Else
+            a_CalType = A_CALENDAR_MONTHSTD
+            Goto Step_WriteOwner
+    End Select
+    Print #1, "Owner=" + strOwner
+
+    Print #1, "Description=" + strCtyFile
+
+    Print #1, ""   'Header Separator
+
+Step_WritePaperSize:
+    Select Case a_PaperSize
+        Case A_PAPER_A3
+            strPaperSize = "A3"
+        Case A_PAPER_A4
+            strPaperSize = "A4"
+        Case A_PAPER_A5
+            strPaperSize = "A5"
+        Case A_PAPER_A6
+            strPaperSize = "A6"
+        Case A_PAPER_A6NEW
+            strPaperSize = "A6신"
+        Case A_PAPER_B4
+            strPaperSize = "B4"
+        Case A_PAPER_B5
+            strPaperSize = "B5"
+        Case A_PAPER_B6
+            strPaperSize = "B6"
+        Case A_PAPER_B6NEW
+            strPaperSize = "B6신"
+        Case A_PAPER_B40
+            strPaperSize = "B40"
+        Case A_PAPER_LETTER
+            strPaperSize = "Letter"
+        Case A_PAPER_LEGAL
+            strPaperSize = "Legal"
+        Case A_PAPER_80COL
+            strPaperSize = "80컬럼"
+        Case A_PAPER_132COL
+            strPaperSize = "132컬럼"
+        Case A_PAPER_USERDEF
+            strPaperSize = "사용자정의"
+        Case Else
+            a_PaperSize = A_PAPER_A4
+            Goto Step_WritePaperSize
+    End Select
+    Print #1, "PaperSize=" + strPaperSize
+
+Step_WritePaperDir:
+    Select Case a_PaperDir
+        Case A_PAPER_LANDSCAPE
+            strPaperDir = "Landscape"
+        Case A_PAPER_PORTRAIT
+            strPaperDir = "Portrait"
+        Case Else
+            a_PaperDir = A_PAPER_LANDSCAPE
+            Goto Step_WritePaperDir
+    End Select
+    Print #1, "PaperDir=" + strPaperDir
+
+Step_WriteColor:
+    Select Case a_Color
+        Case 1
+            strColor = "On"
+        Case 0
+            strColor = "Off"
+        Case Else
+            a_Color = 1
+            Goto Step_WriteColor
+    End Select
+    Print #1, "Color= " + strColor
+
+Step_WritePims31Data:
+    Select Case a_Pims31Data
+        Case 1
+            strPims31Data = "On"
+        Case 0
+            strPims31Data = "Off"
+        Case Else
+            a_Pims31Data = 0
+            Goto Step_WritePims31Data
+    End Select
+    Print #1, "Pims31Data=" + strPims31Data
+
+    If a_CalType = A_CALENDAR_MONTHSTD Or a_CalType = A_CALENDAR_MONTHCARD Or a_CalType = A_CALENDAR_MONTHIMG Then
+        Print #1, "Logo=" + a_Logo
+    End If
+
+    If a_CalType = A_CALENDAR_MONTHIMG Then
+        Print #1, "Image=" + a_Image
+    End If
+
+    Close #1
+
+Step_EndWrite:
+
+	Dmy = a_FileExt.EndChangeDirectory()
+
+End Sub
+
+Function SetOptionDlgProc(identifier$, action, suppvalue)
+
+    Dim iPicExamID       As Integer
+    Dim iBtnPrevID       As Integer
+    Dim iBtnNextID       As Integer
+    Dim iBtnMakeID       As Integer
+    Dim iBtnCancelID     As Integer
+
+    Dim iEditYear1ID     As Integer
+    Dim iEditMonth1ID    As Integer
+    Dim iEditDay1ID      As Integer
+    Dim iEditYear2ID     As Integer
+    Dim iEditMonth2ID    As Integer
+    Dim iEditDay2ID      As Integer
+    Dim iChkCurrDocID    As Integer
+    Dim iChkColorID      As Integer
+    Dim iChkPims31DataID As Integer
+    Dim iComboDateID     As Integer
+    Dim iEditLogoID      As Integer
+    Dim iBtnBrowseID     As Integer
+    Dim iBtnSaveID       As Integer
+
+    iPicExamID       = DlgControlID("PicExam")
+    iBtnPrevID       = DlgControlID("BtnPrev")
+    iBtnNextID       = DlgControlID("BtnNext")
+    iBtnMakeID       = DlgControlID("BtnMake")
+    iBtnCancelID     = DlgControlID("BtnCancel")
+
+    iEditYear1ID     = DlgControlID("EditYear1")
+    iEditMonth1ID    = DlgControlID("EditMonth1")
+    iEditDay1ID      = DlgControlID("EditDay1")
+    iEditYear2ID     = DlgControlID("EditYear2")
+    iEditMonth2ID    = DlgControlID("EditMonth2")
+    iEditDay2ID      = DlgControlID("EditDay2")
+    iChkCurrDocID    = DlgControlID("ChkCurrDoc")
+    iChkColorID      = DlgControlID("ChkColor")
+    iChkPims31DataID = DlgControlID("ChkPims31Data")
+    iComboDateID     = DlgControlID("ComboDate")
+    iEditLogoID      = DlgControlID("EditLogo")
+    iBtnBrowseID     = DlgControlID("BtnBrowse")
+    iBtnSaveID       = DlgControlID("BtnSave")
+
+    SetOptionDlgProc = 1
+
+    Select Case action
+
+        Case 1
+
+            Select Case a_CalType
+                Case A_CALENDAR_MONTHSTD
+                    DlgEnable iEditDay1ID, 0
+                    DlgEnable iEditDay2ID, 0
+                    DlgEnable iChkPims31DataID, g_IsPimsInstalled
+                Case A_CALENDAR_MONTHCARD
+                    DlgEnable iEditDay1ID, 0
+                    DlgEnable iEditDay2ID, 0
+                    DlgEnable iChkPims31DataID, g_IsPimsInstalled
+                Case A_CALENDAR_MONTHIMG
+                    DlgEnable iEditDay1ID, 0
+                    DlgEnable iEditDay2ID, 0
+                    DlgEnable iChkPims31DataID, g_IsPimsInstalled
+                Case A_CALENDAR_DAY
+                    DlgEnable iChkPims31DataID, g_IsPimsInstalled
+                Case A_CALENDAR_WEEK
+                    DlgEnable iChkPims31DataID, g_IsPimsInstalled
+                Case A_CALENDAR_YEAR
+                    DlgEnable iEditMonth1ID, 0
+                    DlgEnable iEditMonth2ID, 0
+                    DlgEnable iEditDay1ID, 0
+                    DlgEnable iEditDay2ID, 0
+                    DlgEnable iChkPims31DataID, g_IsPimsInstalled
+            End Select
+
+            ResetOptionDlg iPicExamID, iBtnPrevID, iBtnNextID, iBtnMakeID, iBtnCancelID, iEditYear1ID, iEditMonth1ID, iEditDay1ID, iEditYear2ID, iEditMonth2ID, iEditDay2ID, iChkCurrDocID, iChkColorID, iChkPims31DataID, iComboDateID, iEditLogoID, iBtnBrowseID, iBtnSaveID
+
+        Case 2
+
+            If identifier$ = "BtnPrev" Then
+                g_WizState = A_STATE_PREV
+                SetOptionDlgProc = 0
+            End If
+            If identifier$ = "BtnNext" Then
+                g_WizState = A_STATE_NEXT
+                SetOptionDlgProc = 0
+            End If
+            If identifier$ = "BtnMake" Then
+                g_WizState = A_STATE_MAKE
+                SetOptionDlgProc = 0
+            End If
+            If identifier$ = "BtnCancel" Then
+                g_WizState = A_STATE_CANCEL
+                SetOptionDlgProc = 0
+            End If
+
+            If identifier$ = "ChkCurrDoc" Then
+                a_CurrDoc = DlgValue(iChkCurrDocID)
+            End If
+            If identifier$ = "ChkColor" Then
+                a_Color = DlgValue(iChkColorID)
+            End If
+            If identifier$ = "ChkPims31Data" then
+                a_Pims31Data = DlgValue(iChkPims31DataID)
+            End If
+            If identifier$ = "BtnBrowse" Then
+                a_Logo = a_FileExt.FileDialog(1, "*.bmp", "", "Image Files (*.bmp)|*.bmp|All Files (*.*)|*.*||")
+                ResetOptionDlg -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, iEditLogoID, iBtnBrowseID, -1
+            End If
+            If identifier$ = "BtnSave" Then
+                WriteCty
+            End If
+
+        Case 3
+
+            If identifier$ = "EditYear1" Then
+                a_Year1 = Val(DlgText(iEditYear1ID))
+            End If
+            If identifier$ = "EditMonth1" Then
+                a_Month1 = Val(DlgText(iEditMonth1ID))
+            End If
+            If identifier$ = "EditDay1" Then
+                a_Day1 = Val(DlgText(iEditDay1ID))
+            End If
+            If identifier$ = "EditYear2" Then
+                a_Year2 = Val(DlgText(iEditYear2ID))
+            End If
+            If identifier$ = "EditMonth2" Then
+                a_Month2 = Val(DlgText(iEditMonth2ID))
+            End If
+            If identifier$ = "EditDay2" Then
+                a_Day2 = Val(DlgText(iEditDay2ID))
+            End If
+            If identifier$ = "ComboDate" Then
+                a_Date = DlgValue(iComboDateID)
+            End If
+            If identifier$ = "EditLogo" Then
+                a_Logo = DlgText(iEditLogoID)
+            End If
+
+        Case 4
+        Case 5
+
+    End Select
+
+End Function
+
+Sub SetOption
+
+    Begin Dialog SetOptionDlg 288, 192, "달력 만들기 - 작성 옵션 설정", .SetOptionDlgProc
+
+        Picture      4,   4, 100, 150, a_CurDir + "lmt.bmp", 0, .PicExam
+        Picture      4, 152, 280,  16, a_CurDir + "Sep.bmp", 0, .PicSep
+        PushButton  34, 172,  50,  14, "<이전" , .BtnPrev
+        PushButton  90, 172,  50,  14, "다음>" , .BtnNext
+        PushButton 146, 172,  50,  14, "만들기", .BtnMake
+        PushButton 202, 172,  50,  14, "취소"  , .BtnCancel
+
+        Text 112, 4, 168, 8, Trim(Str(a_Step)) + ". 달력의 작성 옵션을 설정합니다."
+
+        TextBox 120, 24, 20, 12, .EditYear1
+        Text    140, 28,  8,  8, "년"
+        TextBox 148, 24, 12, 12, .EditMonth1
+        Text    160, 28,  8,  8, "월"
+        TextBox 168, 24, 12, 12, .EditDay1
+        Text    180, 28,  8,  8, "일"
+        Text    192, 28,  8,  8, "∼"
+        TextBox 204, 24, 20, 12, .EditYear2
+        Text    224, 28,  8,  8, "년"
+        TextBox 232, 24, 12, 12, .EditMonth2
+        Text    244, 28,  8,  8, "월"
+        TextBox 252, 24, 12, 12, .EditDay2
+        Text    264, 28,  8,  8, "일"
+
+        CheckBox 128, 44,  80, 8, "열려진 문서내 만들기"        , .ChkCurrDoc
+        CheckBox 128, 60,  80, 8, "컬러 인쇄"                    , .ChkColor
+        CheckBox 128, 76, 112, 8, "훈민 스케쥴러 데이터 읽어오기", .ChkPims31Data
+
+        Text         112, 97,  16,  8, "요일"
+        DropComboBox 128, 92, 105, 60, "일  월  화  수  목  금  토" + Chr(9) + "日  月  火  水  木  金  土" + Chr(9) + "SUN MON TUE WED THU FRI SAT", .ComboDate
+
+        Text       112, 116,  16,  8, "로고"
+        TextBox    128, 112, 104, 12, .EditLogo
+        PushButton 236, 112,  40, 12, "찾아보기...", .BtnBrowse
+
+        PushButton 212, 132, 64, 12, "서식파일로 저장...", .BtnSave
+
+    End Dialog
+
+    Dim DlgSetOption As SetOptionDlg
+
+    Dialog DlgSetOption
+
+End Sub
+
+Sub ResetImageDlg(iPicExamID, iBtnPrevID, iBtnNextID, iBtnMakeID, iBtnCancelID, iPicImageID, iEditImgPathID As Integer)
+
+    Dim strPre As String
+
+    If iBtnPrevID >= 0 Then
+        If a_bBtnPrev <> 0 And a_bBtnPrev <> 1 Then
+            a_bBtnPrev = 0
+        End If
+        DlgEnable iBtnPrevID, a_bBtnPrev
+    End If
+
+    If iBtnNextID >= 0 Then
+        If a_bBtnNext <> 0 And a_bBtnNext <> 1 Then
+            a_bBtnNext = 0
+        End If
+        DlgEnable iBtnNextID, a_bBtnNext
+    End If
+
+    If iBtnMakeID >= 0 Then
+        If a_bBtnMake <> 0 And a_bBtnMake <> 1 Then
+            a_bBtnMake = 0
+        End If
+        DlgEnable iBtnMakeID, a_bBtnMake
+    End If
+
+    If iBtnCancelID >= 0 Then
+        If a_bBtnCancel <> 0 And a_bBtnCancel <> 1 Then
+            a_bBtnCancel = 0
+        End If
+        DlgEnable iBtnCancelID, a_bBtnCancel
+    End If
+
+    If iPicImageID >= 0 Then
+        DlgSetPicture iPicImageID, a_Image, 0
+    End If
+
+    If iEditImgPathID >= 0 Then
+        DlgText iEditImgPathID, a_Image
+    End If
+
+    If iPicExamID >= 0 Then
+        '------------------------------------------------------------
+        ' 사용자가 지정한 여러 Calendar 정보를 참고로 그림을 바꾼다.
+        '------------------------------------------------------------
+        Select Case a_PaperDir
+            Case A_PAPER_LANDSCAPE
+                strPre = "l"
+            Case A_PAPER_PORTRAIT
+                strPre = "p"
+        End Select
+        Select Case a_CalType
+            Case A_CALENDAR_DAY
+                DlgSetPicture iPicExamID, a_CurDir + strPre + "d.bmp", 0
+            Case A_CALENDAR_WEEK
+                DlgSetPicture iPicExamID, a_CurDir + strPre + "w.bmp", 0
+            Case A_CALENDAR_MONTHSTD
+                DlgSetPicture iPicExamID, a_CurDir + strPre + "mt.bmp", 0
+            Case A_CALENDAR_MONTHCARD
+                DlgSetPicture iPicExamID, a_CurDir + strPre + "mf.bmp", 0
+            Case A_CALENDAR_MONTHIMG
+                DlgSetPicture iPicExamID, a_CurDir + strPre + "mi.bmp", 0
+            Case A_CALENDAR_YEAR
+                DlgSetPicture iPicExamID, a_CurDir + strPre + "y.bmp", 0
+        End Select
+    End If
+
+End Sub
+
+Function SetImageDlgProc(identifier$, action, suppvalue)
+
+    Dim iPicExamID       As Integer
+    Dim iBtnPrevID       As Integer
+    Dim iBtnNextID       As Integer
+    Dim iBtnMakeID       As Integer
+    Dim iBtnCancelID     As Integer
+
+    Dim iPicImageID      As Integer
+    Dim iEditImgPathID   As Integer
+    Dim iBtnBrowseID     As Integer
+    Dim iBtnSaveID       As Integer
+
+    iPicExamID     = DlgControlID("PicExam")
+    iBtnPrevID     = DlgControlID("BtnPrev")
+    iBtnNextID     = DlgControlID("BtnNext")
+    iBtnMakeID     = DlgControlID("BtnMake")
+    iBtnCancelID   = DlgControlID("BtnCancel")
+
+    iPicImageID    = DlgControlID("PicImage")
+    iEditImgPathID = DlgControlID("EditImgPath")
+    iBtnBrowseID   = DlgControlID("BtnBrowse")
+    iBtnSaveID     = DlgControlID("BtnSave")
+
+    SetImageDlgProc = 1
+
+    Select Case action
+
+        Case 1
+
+            ResetImageDlg iPicExamID, iBtnPrevID, iBtnNextID, iBtnMakeID, iBtnCancelID, iPicImageID, iEditImgPathID
+
+        Case 2
+
+            If identifier$ = "BtnPrev" Then
+                g_WizState = A_STATE_PREV
+                SetImageDlgProc = 0
+            End If
+            If identifier$ = "BtnNext" Then
+                g_WizState = A_STATE_NEXT
+                SetImageDlgProc = 0
+            End If
+            If identifier$ = "BtnMake" Then
+                g_WizState = A_STATE_MAKE
+                SetImageDlgProc = 0
+            End If
+            If identifier$ = "BtnCancel" Then
+                g_WizState = A_STATE_CANCEL
+                SetImageDlgProc = 0
+            End If
+
+            If identifier$ = "BtnBrowse" Then
+                a_Image = a_FileExt.FileDialog(1, "*.bmp", "", "Image Files (*.bmp)|*.bmp|All Files (*.*)|*.*||")
+                ResetImageDlg -1, -1, -1, -1, -1, iPicImageID, iEditImgPathID
+            End If
+
+            If identifier$ = "BtnSave" Then
+                WriteCty
+            End If
+
+        Case 3
+
+            If identifier$ = "EditImgPath" Then
+                a_Image = DlgText(iEditImgPathID)
+                ResetImageDlg -1, -1, -1, -1, -1, iPicImageID, iEditImgPathID
+            End If
+
+        Case 4
+        Case 5
+
+    End Select
+
+End Function
+
+Sub SetImage
+
+    Begin Dialog SetImageDlg 288, 192, "달력 만들기 - 그림지정", .SetImageDlgProc
+
+        Picture      4,   4, 100, 150, a_CurDir + "lmt.bmp", 0, .PicExam
+        Picture      4, 152, 280,  16, a_CurDir + "Sep.bmp", 0, .PicSep
+        PushButton  34, 172,  50,  14, "<이전" , .BtnPrev
+        PushButton  90, 172,  50,  14, "다음>" , .BtnNext
+        PushButton 146, 172,  50,  14, "만들기", .BtnMake
+        PushButton 202, 172,  50,  14, "취소"  , .BtnCancel
+
+        Text 112, 4, 168, 8, Trim(Str(a_Step)) + ". 그림을 지정합니다."
+
+        Picture    132,  16, 128, 100, a_CurDir + "Image.bmp", 0, .PicImage
+        TextBox    112, 120, 124,  12, .EditImgPath
+        PushButton 240, 120,  40,  12, "찾아보기..."       , .BtnBrowse
+        PushButton 216, 136,  64,  12, "서식파일로 저장...", .BtnSave
+
+    End Dialog
+
+    Dim DlgSetImage As SetImageDlg
+
+    Dialog DlgSetImage
+
+End Sub
+
+Sub Wizard
+
+    Set a_FileExt = CreateObject("HBAEXT2K.FILEEXT")
+
+    '----------------------------------------
+    ' Init system variable
+    '----------------------------------------
+    a_CurDir = CurDir
+    If Right(a_CurDir, 1) <> "\" Then
+        a_CurDir = a_CurDir + "\"
+    End If
+    a_Step = 1
+
+    '----------------------------------------
+    ' Init application variable
+    '----------------------------------------
+    a_CalType   = A_CALENDAR_MONTHSTD
+    a_PaperSize = A_PAPER_A4
+    a_PaperDir  = A_PAPER_LANDSCAPE
+
+    a_StyleSelect = -1
+
+    a_Year1     = Year(Now)
+    a_Month1    = Month(Now)
+    a_Day1      = Day(Now)
+    a_Year2     = a_Year1
+    a_Month2    = a_Month1
+    a_Day2      = a_Day1
+    a_Date      = 0
+    a_Logo      = a_CurDir + "SamsungLogo.gif"   'Reset by LoadStyle
+
+Step_SetType:
+
+    '----------------------------------------
+    ' Init step
+    '----------------------------------------
+    a_bBtnPrev   = 0
+    a_bBtnNext   = 1
+    a_bBtnMake   = 1
+    a_bBtnCancel = 1
+
+    SetType
+
+    Select Case g_WizState
+'       Case A_STATE_PREV
+        Case A_STATE_NEXT
+            a_Step = a_Step + 1
+            Goto Step_SetOption
+        Case A_STATE_MAKE
+            Goto Step_Make
+        Case A_STATE_CANCEL
+            Goto Step_Cancel
+    End Select
+    Goto Step_Cancel
+
+Step_SetOption:
+
+    '----------------------------------------
+    ' Init step
+    '----------------------------------------
+    a_bBtnPrev   = 1
+    Select Case a_CalType
+        Case A_CALENDAR_MONTHIMG
+            a_bBtnNext = 1
+        Case Else
+            a_bBtnNext = 0
+    End Select
+    a_bBtnMake   = 1
+    a_bBtnCancel = 1
+
+    SetOption
+
+    Select Case g_WizState
+        Case A_STATE_PREV
+            a_Step = a_Step - 1
+            Goto Step_SetType
+        Case A_STATE_NEXT
+            Select Case a_CalType
+                Case A_CALENDAR_MONTHIMG
+                    a_Step = a_Step + 1
+                    Goto Step_SetImage
+'               Case Else
+            End Select
+        Case A_STATE_MAKE
+            Goto Step_Make
+        Case A_STATE_CANCEL
+            Goto Step_Cancel
+    End Select
+    Goto Step_Cancel
+
+Step_SetImage:
+
+    '----------------------------------------
+    ' Init step
+    '----------------------------------------
+    a_bBtnPrev   = 1
+    a_bBtnNext   = 0
+    a_bBtnMake   = 1
+    a_bBtnCancel = 1
+
+    SetImage
+
+    Select Case g_WizState
+        Case A_STATE_PREV
+            a_Step = a_Step - 1
+            Goto Step_SetOption
+'       Case A_STATE_NEXT
+        Case A_STATE_MAKE
+            Goto Step_Make
+        Case A_STATE_CANCEL
+            Goto Step_Cancel
+    End Select
+    Goto Step_Cancel
+
+Step_Make:
+
+Step_Cancel:
+
+End Sub
+
+'================================================================================
+
+Const SCAL_GPRATE  = 0.03
+
+Global Hun70      As Object
+Global SolarLunar As Object
+Global Pims31     As Object
+Global dmy        As Integer
+
+'페이지
+Global g_wdPaper As Long
+Global g_hgPaper As Long
+Global g_lmPaper As Long
+Global g_tmPaper As Long
+Global g_rmPaper As Long
+Global g_bmPaper As Long
+Global g_sxPage  As Long
+Global g_syPage  As Long
+Global g_exPage  As Long
+Global g_eyPage  As Long
+Global g_wdPage  As Long
+Global g_hgPage  As Long
+
+'달력
+Global g_wdTitle1      As Long
+
+Global g_hgTitle1      As Long
+Global g_sxTitle1      As Long
+
+Global g_syTitle1      As Long
+Global g_exTitle1      As Long
+Global g_eyTitle1      As Long
+Global g_gpTitle1      As Long
+
+Global g_wdTitle2      As Long
+Global g_hgTitle2      As Long
+Global g_sxTitle2      As Long
+Global g_syTitle2      As Long
+Global g_exTitle2      As Long
+Global g_eyTitle2      As Long
+Global g_gpTitle2      As Long
+
+Global g_wdMemo        As Long
+Global g_hgMemo        As Long
+Global g_sxMemo        As Long
+Global g_syMemo        As Long
+Global g_exMemo        As Long
+Global g_eyMemo        As Long
+Global g_gpMemo        As Long
+
+Global g_wdLogo        As Long
+Global g_hgLogo        As Long
+Global g_sxLogo        As Long
+Global g_syLogo        As Long
+Global g_exLogo        As Long
+Global g_eyLogo        As Long
+
+Global g_wdTblCal1     As Long
+Global g_hgTblCal1     As Long
+Global g_sxTblCal1     As Long
+Global g_syTblCal1     As Long
+Global g_exTblCal1     As Long
+Global g_eyTblCal1     As Long
+Global g_gpTblCal1     As Long
+
+Global g_wdTblCal2     As Long
+Global g_hgTblCal2     As Long
+Global g_sxTblCal2     As Long
+Global g_syTblCal2     As Long
+Global g_exTblCal2     As Long
+Global g_eyTblCal2     As Long
+Global g_gpTblCal2     As Long
+
+Global g_wdCal         As Long
+Global g_wdCal1        As Long
+Global g_wdCal2        As Long
+Global g_wdCal3        As Long
+Global g_hgCal         As Long
+Global g_sxCal         As Long
+Global g_syCal         As Long
+Global g_exCal         As Long
+Global g_eyCal         As Long
+Global g_gpCal         As Long
+
+Global g_CalOffsetY    As Long
+Global g_hgHeader      As Long
+Global g_wdCell        As Long
+Global g_hgCell        As Long
+
+Global g_FntTitle1     As String
+Global g_FntTitle2     As String
+Global g_FntHeader     As String
+Global g_FntCell       As String
+Global g_FntAnni       As String
+Global g_FntMemo       As String
+
+Global g_FntSzTitle1   As Long
+Global g_FntSzTitle2   As Long
+Global g_FntSzHeader   As Long
+Global g_FntSzCell     As Long
+Global g_FntSzAnni     As Long
+Global g_FntSzMemo     As Long
+
+Global g_xCntsCal      As Integer
+Global g_yCntsCal      As Integer
+
+Global g_FntSzX        As Integer
+Global g_FntSzY        As Integer
+Global g_FntSz         As Integer
+
+'사용자 인터페이스
+Global g_PimsDataCount              As Integer
+Global g_PimsDatabTodo(100)         As Integer
+Global g_PimsDatabDone(100)         As Integer
+Global g_PimsDatadateYear(100)      As Integer
+Global g_PimsDatadateMonth(100)     As Integer
+Global g_PimsDatadateDay(100)       As Integer
+Global g_PimsDatadateHour(100)      As Integer
+Global g_PimsDatadateMinute(100)    As Integer
+Global g_PimsDatadateSecond(100)    As Integer
+Global g_PimsDatadateDueYear(100)   As Integer
+Global g_PimsDatadateDueMonth(100)  As Integer
+Global g_PimsDatadateDueDay(100)    As Integer
+Global g_PimsDatadateDueHour(100)   As Integer
+Global g_PimsDatadateDueMinute(100) As Integer
+Global g_PimsDatadateDueSecond(100) As Integer
+Global g_PimsDatastrText(100)       As String
+Global g_PimsDatastrPerson(100)     As String
+Global g_PimsDatastrType(100)       As String
+Global g_PimsDatastrPriority(100)   As String
+Global g_PimsSpecCount              As Integer
+Global g_PimsSpecbOneYear(100)      As Integer
+Global g_PimsSpecbLunar(100)        As Integer
+Global g_PimsSpecyear(100)          As Integer
+Global g_PimsSpecmonth(100)         As Integer
+Global g_PimsSpecday(100)           As Integer
+Global g_PimsSpecbHoliday(100)      As Integer
+Global g_PimsSpecnHolidayPrev(100)  As Integer
+Global g_PimsSpecnHoliday(100)      As Integer
+Global g_PimsSpecstrText(100)       As String
+Global g_PimsSpecstrMemo2           As String
+
+Global g_sPimsDataCount              As Integer
+Global g_sPimsDatabTodo(100)         As Integer
+Global g_sPimsDatabDone(100)         As Integer
+Global g_sPimsDatadateYear(100)      As Integer
+Global g_sPimsDatadateMonth(100)     As Integer
+Global g_sPimsDatadateDay(100)       As Integer
+Global g_sPimsDatadateHour(100)      As Integer
+Global g_sPimsDatadateMinute(100)    As Integer
+Global g_sPimsDatadateSecond(100)    As Integer
+Global g_sPimsDatadateDueYear(100)   As Integer
+Global g_sPimsDatadateDueMonth(100)  As Integer
+Global g_sPimsDatadateDueDay(100)    As Integer
+Global g_sPimsDatadateDueHour(100)   As Integer
+Global g_sPimsDatadateDueMinute(100) As Integer
+Global g_sPimsDatadateDueSecond(100) As Integer
+Global g_sPimsDatastrText(100)       As String
+Global g_sPimsDatastrPerson(100)     As String
+Global g_sPimsDatastrType(100)       As String
+Global g_sPimsDatastrPriority(100)   As String
+
+'================================================================================Wizard Bridge
+Sub SetPaperSizeDir
+    Dim iPaperSize As Integer
+    Dim iPaperDir  As Integer
+    Select Case a_PaperSize
+        Case A_PAPER_A3
+            iPaperSize = 1
+        Case A_PAPER_A4
+            iPaperSize = 0
+        Case A_PAPER_A5
+            iPaperSize = 7
+        Case A_PAPER_A6
+            iPaperSize = 8
+        Case A_PAPER_A6NEW
+            iPaperSize = 9
+        Case A_PAPER_B4
+            iPaperSize = 3
+        Case A_PAPER_B5
+            iPaperSize = 2
+        Case A_PAPER_B6
+            iPaperSize = 10
+        Case A_PAPER_B6NEW
+            iPaperSize = 11
+        Case A_PAPER_B40
+            iPaperSize = 12
+        Case A_PAPER_LETTER
+            iPaperSize = 4
+        Case A_PAPER_LEGAL
+            iPaperSize = 5
+        Case A_PAPER_80COL
+            iPaperSize = 13
+        Case A_PAPER_132COL
+            iPaperSize = 14
+        Case A_PAPER_USERDEF
+'           iPaperSize = 
+        Case Else
+            iPaperSize = 0
+    End Select
+Step_SetPaperDir:
+    Select Case a_PaperDir
+        Case A_PAPER_LANDSCAPE
+            iPaperDir = 1
+        Case A_PAPER_PORTRAIT
+            iPaperDir = 0
+        Case Else
+            Select Case a_CalType
+                Case A_CALENDAR_MONTHSTD
+                    a_PaperDir = A_PAPER_LANDSCAPE
+                    Goto Step_SetPaperDir
+                Case A_CALENDAR_MONTHCARD
+                    a_PaperDir = A_PAPER_LANDSCAPE
+                    Goto Step_SetPaperDir
+                Case A_CALENDAR_MONTHIMG
+                    a_PaperDir = A_PAPER_LANDSCAPE
+                    Goto Step_SetPaperDir
+                Case A_CALENDAR_DAY
+                    a_PaperDir = A_PAPER_PORTRAIT
+                    Goto Step_SetPaperDir
+                Case A_CALENDAR_WEEK
+                    a_PaperDir = A_PAPER_PORTRAIT
+                    Goto Step_SetPaperDir
+                Case A_CALENDAR_YEAR
+                    a_PaperDir = A_PAPER_PORTRAIT
+                    Goto Step_SetPaperDir
+                Case Else
+                    a_CalType = A_CALENDAR_MONTHSTD
+                    Goto Step_SetPaperDir
+            End Select
+    End Select
+    dmy = Hun70.PaperSize(-1, iPaperSize, 0, 0, iPaperDir, 0)
+    If iPaperDir = 1 Then
+        dmy = Hun70.MaxHorizontalZoom()
+    Else
+        dmy = Hun70.MaxVerticalZoom()
+    End If
+End Sub
+'================================================================================
+
+'좌표계 변환
+Function TwipsToMM(ValTwips As Double) As Double
+    TwipsToMM = ValTwips * 254.0 / 14400.0
+End Function
+
+Function MMToTwips(ValMM As Double) As Double
+    MMToTwips = ValMM * 14400.0 / 254.0
+End Function
+
+Function TwipsToPt(ValTwips As Double) As Double
+    TwipsToPt = ValTwips / 20
+End Function
+
+Function PtToTwips(ValPt As Double) As Double
+    PtToTwips = ValPt * 20
+End Function
+
+'페이퍼 정보
+Sub GetPaperInfo()
+
+    dmy = Hun70.GetPaperSize(-1, -1, g_wdPaper, g_hgPaper)
+    dmy = Hun70.GetPaperMargins(-1, g_lmPaper, g_tmPaper, g_rmPaper, g_bmPaper)
+
+    g_sxPage = g_lmPaper
+    g_syPage = g_tmPaper
+    g_exPage = g_wdPaper - g_rmPaper - 1
+    g_eyPage = g_hgPaper - g_bmPaper - 1
+    g_wdPage = g_wdPaper - g_lmPaper - g_rmPaper
+    g_hgPage = g_hgPaper - g_tmPaper - g_bmPaper
+
+End Sub
+
+'페이지 정보
+Sub SetPageInfoMonth()
+
+    g_wdCell        = g_wdPage / 7
+    g_hgCell        = g_hgPage / 7
+    g_CalOffsetY    = g_hgCell * 2 / 3
+    g_hgHeader      = g_hgCell - g_CalOffsetY
+
+    g_wdLogo        = g_wdCell
+    g_hgLogo        = g_CalOffsetY * 0.9
+    g_sxLogo        = g_exPage - g_wdLogo + 1
+    g_syLogo        = g_syPage
+    g_exLogo        = g_sxLogo + g_wdLogo - 1
+    g_eyLogo        = g_syLogo + g_hgLogo - 1
+
+    g_wdCal         = g_wdPage
+    g_hgCal         = g_hgPage
+    g_sxCal         = g_sxPage
+    g_syCal         = g_syPage + g_CalOffsetY   '그만큼 밑으로 밀려나 있다.
+    g_exCal         = g_sxCal + g_wdCal - 1
+    g_eyCal         = g_syCal + g_hgCal - 1
+    g_gpCal         = 0
+
+    g_FntTitle1     = "Times New Roman"
+    g_FntTitle2     = "Times New Roman"
+    g_FntHeader     = "Arial"
+    g_FntCell       = "Arial"
+    g_FntAnni       = "굴림체"
+
+    g_FntSzTitle1   = g_wdCell / 3
+
+    g_wdTitle1      = g_FntSzTitle1 * 2
+    g_hgTitle1      = g_CalOffsetY * 0.9
+    g_sxTitle1      = g_sxPage
+    g_syTitle1      = g_syPage
+    g_exTitle1      = g_sxTitle1 + g_wdTitle1 - 1
+    g_eyTitle1      = g_syTitle1 + g_hgTitle1 - 1
+    g_gpTitle1      = 0
+
+    'Title1과 Title2의 Vertical Align
+    g_syTitle1      = g_syTitle1 - g_hgCell / 60
+    g_eyTitle1      = g_eyTitle1 - g_hgCell / 60
+
+    g_wdTitle2      = g_FntSzTitle1 * 3
+    g_hgTitle2      = g_hgTitle1
+    g_sxTitle2      = g_exTitle1 + 1
+    g_syTitle2      = g_syPage
+    g_exTitle2      = g_sxTitle2 + g_wdTitle2 - 1
+    g_eyTitle2      = g_syTitle2 + g_hgTitle2 - 1
+    g_gpTitle2      = 0
+
+    g_wdTblCal1     = g_wdCal / 5
+    g_hgTblCal1     = g_hgCal - g_CalOffsetY
+    g_sxTblCal1     = g_sxCal + g_wdCal / 5 * 0
+    g_syTblCal1     = g_syCal
+    g_exTblCal1     = g_sxTblCal1 + g_wdTblCal1 - 1
+    g_eyTblCal1     = g_syTblCal1 + g_hgTblCal1 - 1
+    g_gpTblCal1     = 0
+
+    g_wdTblCal2     = g_wdTblCal1
+    g_hgTblCal2     = g_hgTblCal1
+    g_sxTblCal2     = g_sxCal + g_wdCal / 5 * 4
+    g_syTblCal2     = g_syTblCal1
+    g_exTblCal2     = g_sxTblCal2 + g_wdTblCal2 - 1
+    g_eyTblCal2     = g_syTblCal2 + g_hgTblCal2 - 1
+    g_gpTblCal2     = 0
+
+End Sub
+
+'페이지 정보
+Sub SetPageInfoDay()
+
+    g_wdTitle1      = g_wdPage
+    g_hgTitle1      = g_hgPage * 0.1
+    g_sxTitle1      = g_sxPage
+    g_syTitle1      = g_syPage
+    g_exTitle1      = g_sxTitle1 + g_wdTitle1 - 1
+    g_eyTitle1      = g_syTitle1 + g_hgTitle1 - 1
+    g_gpTitle1      = 0
+
+    g_wdCal         = g_wdPage
+    g_wdCal1        = g_wdCal * 0.1
+    g_wdCal2        = g_wdCal * 0.020
+    g_wdCal3        = g_wdCal - g_wdCal1 - g_wdCal2
+    g_hgCal         = g_hgPage - g_hgTitle1 - g_gpTitle1
+    g_sxCal         = g_sxPage
+    g_syCal         = g_eyTitle1 + g_gpTitle1
+    g_exCal         = g_sxCal + g_wdCal - 1
+    g_eyCal         = g_syCal + g_hgCal - 1
+    g_gpCal         = 0
+
+    g_wdTitle2      = g_wdPage
+    g_hgTitle2      = g_hgPage * 0.1 / 5
+    g_sxTitle2      = g_sxPage
+    g_syTitle2      = g_syCal - g_hgTitle2
+    g_exTitle2      = g_sxTitle2 + g_wdTitle2 - 1
+    g_eyTitle2      = g_syTitle2 + g_hgTitle2 - 1
+    g_gpTitle2      = 0
+
+    g_FntTitle1     = "굴림"
+    g_FntTitle2    = "굴림"
+    g_FntHeader     = "Times New Roman"
+
+End Sub
+
+'페이지 정보
+Sub SetPageInfoWeek()
+
+    g_wdTitle1      = g_wdPage
+    g_hgTitle1      = g_hgPage * 0.1   'Portrait에서의 크기로 fixed 되어야 함.
+    g_sxTitle1      = g_sxPage
+    g_syTitle1      = g_syPage
+    g_exTitle1      = g_sxTitle1 + g_wdTitle1 - 1
+    g_eyTitle1      = g_syTitle1 + g_hgTitle1 - 1
+    g_gpTitle1      = 0
+
+    g_wdCal         = g_wdPage
+    g_hgCal         = g_hgPage - g_hgTitle1 - g_gpTitle1
+    g_sxCal         = g_sxPage
+    g_syCal         = g_eyTitle1 + g_gpTitle1
+    g_exCal         = g_sxCal + g_wdCal - 1
+    g_eyCal         = g_syCal + g_hgCal - 1
+    g_gpCal         = 0
+
+    g_FntTitle1     = "굴림"
+    g_FntHeader     = "Times New Roman"
+    g_FntAnni       = "굴림체"
+
+End Sub
+
+'페이지 정보
+Sub SetPageInfoYear()
+
+    If g_wdPage > g_hgPage Then
+        g_xCntsCal = 4
+        g_yCntsCal = 3
+    Else
+        g_xCntsCal = 3
+        g_yCntsCal = 4
+    End If
+
+    g_wdTitle1      = g_wdPage / 3
+    g_hgTitle1      = g_hgPage * 0.1
+    g_sxTitle1      = g_sxPage
+    g_syTitle1      = g_syPage
+    g_exTitle1      = g_sxTitle1 + g_wdTitle1 - 1
+    g_eyTitle1      = g_syTitle1 + g_hgTitle1 - 1
+    g_gpTitle1      = 0
+
+    g_wdCal         = g_wdPage
+    g_hgCal         = g_hgPage - g_hgTitle1 - g_gpTitle1
+    g_sxCal         = g_sxPage
+    g_syCal         = g_eyTitle1 + g_gpTitle1 + (g_hgCal / g_yCntsCal) * SCAL_GPRATE
+    g_exCal         = g_sxCal + g_wdCal - 1
+    g_eyCal         = g_syCal + g_hgCal - 1
+    g_gpCal         = 0
+
+    g_wdMemo        = g_wdPage - g_wdTitle1 - (g_hgCal / g_yCntsCal) * SCAL_GPRATE
+    g_hgMemo        = g_hgTitle1
+    g_sxMemo        = g_exTitle1 + 1
+    g_syMemo        = g_syTitle1
+    g_exMemo        = g_sxMemo + g_wdMemo - 1
+    g_eyMemo        = g_syMemo + g_hgMemo - 1
+    g_gpMemo        = 0
+
+    g_FntTitle1     = "굴림"
+    g_FntMemo       = "Times New Roman"
+
+End Sub
+
+'해당월의 마지막 일을 구한다.
+Function GetMonthDay(lMonth As Long) As Long
+
+    Select Case lMonth
+        Case 1
+            GetMonthDay = 31
+        Case 2
+            GetMonthDay = 28
+        Case 3
+            GetMonthDay = 31
+        Case 4
+            GetMonthDay = 30
+        Case 5
+            GetMonthDay = 31
+        Case 6
+            GetMonthDay = 30
+        Case 7
+            GetMonthDay = 31
+        Case 8
+            GetMonthDay = 31
+        Case 9
+            GetMonthDay = 30
+        Case 10
+            GetMonthDay = 31
+        Case 11
+            GetMonthDay = 30
+        Case 12
+            GetMonthDay = 31
+    End Select
+
+End Function
+
+'해당월의 문자를 구한다.
+Function GetMonthStr(lMonth As Long) As String
+
+    Select Case lMonth
+        Case 1
+            GetMonthStr = "January"
+        Case 2
+            GetMonthStr = "February"
+        Case 3
+            GetMonthStr = "March"
+        Case 4
+            GetMonthStr = "April"
+        Case 5
+            GetMonthStr = "May"
+        Case 6
+            GetMonthStr = "June"
+        Case 7
+            GetMonthStr = "July"
+        Case 8
+            GetMonthStr = "August"
+        Case 9
+            GetMonthStr = "September"
+        Case 10
+            GetMonthStr = "October"
+        Case 11
+            GetMonthStr = "November"
+        Case 12
+            GetMonthStr = "December"
+    End Select
+
+End Function
+
+'해당요일의 문자를 구한다.
+Function GetDateStr(lDay As Long, iType As Integer) As String
+
+    Select Case lDay
+        Case 0
+            Select Case iType
+                Case 0
+                    GetDateStr = "일"
+                Case 1
+                    GetDateStr = "日"
+                Case 2
+                    GetDateStr = "Sunday"
+            End Select
+        Case 1
+            Select Case iType
+                Case 0
+                    GetDateStr = "월"
+                Case 1
+                    GetDateStr = "月"
+                Case 2
+                    GetDateStr = "Monday"
+            End Select
+        Case 2
+            Select Case iType
+                Case 0
+                    GetDateStr = "화"
+                Case 1
+                    GetDateStr = "火"
+                Case 2
+                    GetDateStr = "Tuesday"
+            End Select
+        Case 3
+            Select Case iType
+                Case 0
+                    GetDateStr = "수"
+                Case 1
+                    GetDateStr = "水"
+                Case 2
+                    GetDateStr = "Wednesday"
+            End Select
+        Case 4
+            Select Case iType
+                Case 0
+                    GetDateStr = "목"
+                Case 1
+                    GetDateStr = "木"
+                Case 2
+                    GetDateStr = "Thursday"
+            End Select
+        Case 5
+            Select Case iType
+                Case 0
+                    GetDateStr = "금"
+                Case 1
+                    GetDateStr = "金"
+                Case 2
+                    GetDateStr = "Friday"
+            End Select
+        Case 6
+            Select Case iType
+                Case 0
+                    GetDateStr = "토"
+                Case 1
+                    GetDateStr = "土"
+                Case 2
+                    GetDateStr = "Saturday"
+            End Select
+    End Select
+
+End Function
+
+'년월일의 총 일수를 구한다.
+Function GetTotalDay(lYearS As Long, lMonthS As Long, lDayS As Long) As Long
+
+    Dim lTotalDay As Long
+    Dim i         As Integer
+    Dim lYear     As Long
+    Dim lMonth    As Long
+    Dim lDay      As Long
+
+    '소스를 변경시키면 안된다
+    lYear  = lYearS
+    lMonth = lMonthS
+    lDay   = lDayS
+
+    lTotalDay = 0
+
+    lYear = lYear - 1
+    lTotalDay = lYear * 365
+
+    For i = 1 To lMonth - 1
+        lTotalDay = lTotalDay + GetMonthDay(CLng(i))
+    Next i
+
+    lTotalDay = lTotalDay + lDay
+
+	If lMonth > 2 Then
+		lTotalDay = lTotalDay + Int((lYear + 1) / 4) - Int((lYear + 1) / 100) + Int((lYear + 1) / 400)
+	Else
+		lTotalDay = lTotalDay + Int(lYear / 4) - Int(lYear / 100) + Int(lYear / 400)
+	End If
+
+    GetTotalDay = lTotalDay
+
+End Function
+
+Function TextForeColourSunday() As Integer
+
+    Select Case a_Color
+        Case 0
+            dmy = Hun70.TextForeColour(-1, 0, 0, 0)
+            dmy = Hun70.OutLine(-1, 1)
+            TextForeColourSunday = 1
+        Case 1
+            dmy = Hun70.TextForeColour(-1, 255, 0, 0)
+            TextForeColourSunday = 1
+        Case Else
+            TextForeColourSunday = 0
+    End Select
+
+End Function
+
+Function TextForeColourSaturday() As Integer
+
+    Select Case a_Color
+        Case 0
+            dmy = Hun70.TextForeColour(-1, 0, 0, 0)
+            TextForeColourSaturday = 1
+        Case 1
+            dmy = Hun70.TextForeColour(-1, 0, 0, 255)
+            TextForeColourSaturday = 1
+        Case Else
+            TextForeColourSaturday = 0
+    End Select
+
+End Function
+
+Function TextForeColourNormal() As Integer
+
+    Select Case a_Color
+        Case 0
+            dmy = Hun70.TextForeColour(-1, 0, 0, 0)
+            dmy = Hun70.OutLine(-1, 0)
+            TextForeColourNormal = 1
+        Case 1
+            dmy = Hun70.TextForeColour(-1, 0, 0, 0)
+            TextForeColourNormal = 1
+        Case Else
+            TextForeColourNormal = 0
+    End Select
+
+End Function
+
+Function ShadeTitle1() As Integer
+
+    Select Case a_Color
+        Case 0
+            dmy = Hun70.Shade(-1, 2)
+            ShadeTitle1 = 1
+        Case 1
+            dmy = Hun70.Shade(-1, 6)
+            ShadeTitle1 = 1
+        Case Else
+            ShadeTitle1 = 0
+    End Select
+
+End Function
+
+Function TextForeColourTitle1() As Integer
+
+    Select Case a_Color
+        Case 0
+            dmy = Hun70.TextForeColour(-1, 0, 0, 0)
+        Case 1
+            dmy = Hun70.TextForeColour(-1, 128, 192, 255)
+    End Select
+
+End Function
+
+Function TextForeColourTitle2() As Integer
+
+    Select Case a_Color
+        Case 0
+            dmy = Hun70.TextForeColour(-1, 0, 0, 0)
+        Case 1
+            dmy = Hun70.TextForeColour(-1, 0, 0, 0)
+    End Select
+
+End Function
+
+Function TextForeColourMonth1Header(iDate As Integer) As Integer
+
+    Select Case iDate
+        Case 0
+            dmy = TextForeColourSunday()
+            TextForeColourMonth1Header = 1
+        Case 6
+            dmy = TextForeColourSaturday()
+            TextForeColourMonth1Header = 1
+        Case Else
+            'No change colour
+            If iDate > 0 And iDate < 6 Then
+                TextForeColourMonth1Header = 1
+            Else
+                TextForeColourMonth1Header = 0
+            End If
+    End Select
+
+End Function
+
+Sub GetPrevDay(iYear As Integer, iMonth As Integer, iDay As Integer)
+    iDay = iDay - 1
+    If iDay <= 0 Then
+        iMonth = iMonth - 1
+        If iMonth <= 0 Then
+            iYear = iYear - 1
+            iMonth = 12
+        End If
+        iDay = a_GetMonthDay(iYear, iMonth)
+    End If
+End Sub
+
+Sub GetNextDay(iYear As Integer, iMonth As Integer, iDay As Integer)
+    iDay = iDay + 1
+    If iDay > a_GetMonthDay(iYear, iMonth) Then
+        iMonth = iMonth + 1
+        If iMonth > 12 Then
+            iYear = iYear + 1
+            iMonth = 1
+        End If
+        iDay = 1
+    End If
+End Sub
+
+Sub GetPrevDayLong(lYear As Long, lMonth As Long, lDay As Long)
+    lDay = lDay - 1
+    If lDay <= 0 Then
+        lMonth = lMonth - 1
+        If lMonth <= 0 Then
+            lYear = lYear - 1
+            lMonth = 12
+        End If
+        lDay = CLng(a_GetMonthDay(CInt(lYear), CInt(lMonth)))
+    End If
+End Sub
+
+Sub GetNextDayLong(lYear As Long, lMonth As Long, lDay As Long)
+    lDay = lDay + 1
+    If lDay > CLng(a_GetMonthDay(CInt(lYear), CInt(lMonth))) Then
+        lMonth = lMonth + 1
+        If lMonth > 12 Then
+            lYear = lYear + 1
+            lMonth = 1
+        End If
+        lDay = 1
+    End If
+End Sub
+
+Function GetAnniversary(iSYear As Integer, iSMonth As Integer, iSDay As Integer, iHoliday As Integer, lenAnniversary As Integer) As String
+
+    Dim iSYoon         As Integer
+    Dim iLYear         As Integer
+    Dim iLMonth        As Integer
+    Dim iLDay          As Integer
+    Dim iLYoon         As Integer
+
+    Dim iSYearM1       As Integer
+    Dim iSMonthM1      As Integer
+    Dim iSDayM1        As Integer
+    Dim iSYoonM1       As Integer
+    Dim iLYearM1       As Integer
+    Dim iLMonthM1      As Integer
+    Dim iLDayM1        As Integer
+    Dim iLYoonM1       As Integer
+
+    Dim iSYearP1       As Integer
+    Dim iSMonthP1      As Integer
+    Dim iSDayP1        As Integer
+    Dim iSYoonP1       As Integer
+    Dim iLYearP1       As Integer
+    Dim iLMonthP1      As Integer
+    Dim iLDayP1        As Integer
+    Dim iLYoonP1       As Integer
+
+    Dim strAnniversary As String
+    Dim dmy            As Integer
+
+    iSYoon  = 0
+    dmy     = SolarLunar.GetLunarDate(iSYear, iSMonth, iSDay, iSYoon)
+    iLYear  = SolarLunar.GetLunarDateYear()
+    iLMonth = SolarLunar.GetLunarDateMonth()
+    iLDay   = SolarLunar.GetLunarDateDay()
+    iLYoon  = SolarLunar.GetLunarDateYoon()
+
+    iSYearM1  = iSYear
+    iSMonthM1 = iSMonth
+    iSDayM1   = iSDay
+    GetPrevDay iSYearM1, iSMonthM1, iSDayM1
+    iSYoonM1  = 0
+    dmy       = SolarLunar.GetLunarDate(iSYearM1, iSMonthM1, iSDayM1, iSYoonM1)
+    iLYearM1  = SolarLunar.GetLunarDateYear()
+    iLMonthM1 = SolarLunar.GetLunarDateMonth()
+    iLDayM1   = SolarLunar.GetLunarDateDay()
+    iLYoonM1  = SolarLunar.GetLunarDateYoon()
+
+    iSYearP1  = iSYear
+    iSMonthP1 = iSMonth
+    iSDayP1   = iSDay
+    GetNextDay iSYearP1, iSMonthP1, iSDayP1
+    iSYoonP1  = 0
+    dmy       = SolarLunar.GetLunarDate(iSYearP1, iSMonthP1, iSDayP1, iSYoonP1)
+    iLYearP1  = SolarLunar.GetLunarDateYear()
+    iLMonthP1 = SolarLunar.GetLunarDateMonth()
+    iLDayP1   = SolarLunar.GetLunarDateDay()
+    iLYoonP1  = SolarLunar.GetLunarDateYoon()
+
+    strAnniversary = ""
+    iHoliday       = 0
+
+'   If (iSMonth = 1 And iSDay = 1) Or (iSMonthM1 = 1 And iSDayM1 = 1) Then
+    If iSMonth = 1 And iSDay = 1 Then
+        strAnniversary = "신정"
+		lenAnniversary = 4
+        iHoliday = 1
+    End If
+    If iSMonth = 3 And iSDay = 1 Then
+        strAnniversary = "삼일절"
+		lenAnniversary = 6
+        iHoliday = 1
+    End If
+    If iSMonth = 3 And iSDay = 3 Then
+        strAnniversary = "조세의날"
+		lenAnniversary = 8
+        iHoliday = 0
+    End If
+    If iSMonth = 4 And iSDay = 5 Then
+        strAnniversary = "식목일"
+		lenAnniversary = 6
+        iHoliday = 1
+    End If
+    If iSMonth = 4 And iSDay = 7 Then
+        strAnniversary = "보건의날"
+		lenAnniversary = 8
+        iHoliday = 0
+    End If
+    If iSMonth = 4 And iSDay = 19 Then
+        strAnniversary = "4.19혁명기념일"
+		lenAnniversary = 14
+        iHoliday = 0
+    End If
+    If iSMonth = 4 And iSDay = 21 Then
+        strAnniversary = "과학의날"
+		lenAnniversary = 8
+        iHoliday = 0
+    End If
+    If iSMonth = 4 And iSDay = 22 Then
+        strAnniversary = "정보통신의날"
+		lenAnniversary = 12
+        iHoliday = 0
+    End If
+    If iSMonth = 5 And iSDay = 1 Then
+        strAnniversary = "근로자의날"
+		lenAnniversary = 10
+        iHoliday = 0
+    End If
+    If iSMonth = 5 And iSDay = 5 Then
+        strAnniversary = "어린이날"
+		lenAnniversary = 8
+        iHoliday = 1
+    End If
+    If iSMonth = 5 And iSDay = 8 Then
+        strAnniversary = "어버이날"
+		lenAnniversary = 8
+        iHoliday = 0
+    End If
+    If iSMonth = 5 And iSDay = 15 Then
+        strAnniversary = "스승의날"
+		lenAnniversary = 8
+        iHoliday = 0
+    End If
+    If iSMonth = 6 And iSDay = 6 Then
+        strAnniversary = "현충일"
+		lenAnniversary = 6
+        iHoliday = 1
+    End If
+    If iSMonth = 6 And iSDay = 25 Then
+        strAnniversary = "6.25사변일"
+		lenAnniversary = 10
+        iHoliday = 0
+    End If
+    If iSMonth = 7 And iSDay = 17 Then
+        strAnniversary = "제헌절"
+		lenAnniversary = 6
+        iHoliday = 1
+    End If
+    If iSMonth = 8 And iSDay = 15 Then
+        strAnniversary = "광복절"
+		lenAnniversary = 6
+        iHoliday = 1
+    End If
+    If iSMonth = 9 And iSDay = 18 Then
+        strAnniversary = "철도의날"
+		lenAnniversary = 8
+        iHoliday = 0
+    End If
+    If iSMonth = 10 And iSDay = 1 Then
+        strAnniversary = "국군의날"
+		lenAnniversary = 8
+        iHoliday = 0
+    End If
+    If iSMonth = 10 And iSDay = 3 Then
+        strAnniversary = "개천절"
+		lenAnniversary = 6
+        iHoliday = 1
+    End If
+    If iSMonth = 10 And iSDay = 9 Then
+        strAnniversary = "한글날"
+		lenAnniversary = 6
+        iHoliday = 0
+    End If
+    If iSMonth = 10 And iSDay = 15 Then
+        strAnniversary = "체육의날"
+		lenAnniversary = 8
+        iHoliday = 0
+    End If
+    If iSMonth = 10 And iSDay = 20 Then
+        strAnniversary = "문화의날"
+		lenAnniversary = 8
+        iHoliday = 0
+    End If
+    If iSMonth = 10 And iSDay = 21 Then
+        strAnniversary = "경찰의날"
+		lenAnniversary = 8
+        iHoliday = 0
+    End If
+    If iSMonth = 11 And iSDay = 3 Then
+        strAnniversary = "학생의날"
+		lenAnniversary = 8
+        iHoliday = 0
+    End If
+    If iSMonth = 11 And iSDay = 30 Then
+        strAnniversary = "무역의날"
+		lenAnniversary = 8
+        iHoliday = 0
+    End If
+    If iSMonth = 12 And iSDay = 25 Then
+        strAnniversary = "성탄절"
+		lenAnniversary = 6
+        iHoliday = 1
+    End If
+
+    If (iLMonthP1 = 1 And iLDayP1 = 1) Or (iLMonth = 1 And iLDay = 1) Or (iLMonthM1 = 1 And iLDayM1 = 1) Then
+        strAnniversary = "설날"
+		lenAnniversary = 4
+        iHoliday = 1
+    End If
+    If iLMonth = 4 And iLDay = 8 And iLYoon = 0 Then
+        strAnniversary = "석가탄신일"
+		lenAnniversary = 10
+        iHoliday = 1
+    End If
+    If iLMonth = 5 And iLDay = 5 And iLYoon = 0 Then
+        strAnniversary = "단오"
+		lenAnniversary = 4
+        iHoliday = 0
+    End If
+    If (iLMonthP1 = 8 And iLDayP1 = 15) Or (iLMonth = 8 And iLDay = 15) Or (iLMonthM1 = 8 And iLDayM1 = 15) Then
+		If  iLYoon = 0 Then
+			strAnniversary = "추석"
+			lenAnniversary = 4
+			iHoliday = 1
+		End If
+    End If
+
+    GetAnniversary = strAnniversary
+
+End Function
+
+Function GetFontSize(sxRect As Long, syRect As Long, exRect As Long, eyRect As Long, xChrCnt As Integer, yChrCnt As Integer, dCharSpace As Double, dLineSpace As Double, lrMargin As Long, tbMargin As Long) As Long
+
+    Dim wdRect As Long
+    Dim hgRect As Long
+    Dim FntSzX As Long
+    Dim FntSzY As Long
+    Dim FntSz  As Long
+
+    wdRect = exRect - sxRect + 1
+    hgRect = eyRect - syRect + 1
+
+    FntSzX = (wdRect - lrMargin * 2) / (xChrCnt + (xChrCnt - 1) * dCharSpace)
+    FntSzY = (hgRect - tbMargin * 2) / (yChrCnt + (yChrCnt - 1) * dLineSpace)
+
+    If FntSzX > FntSzY Then
+        FntSz = FntSzY
+    Else
+        FntSz = FntSzX
+    End If
+
+    lrMargin = (wdRect - FntSz * (xChrCnt + (xChrCnt - 1) * dCharSpace)) / 2
+    tbMargin = (hgRect - FntSz * (yChrCnt + (yChrCnt - 1) * dLineSpace)) / 2
+
+    GetFontSize = FntSz
+
+End Function
+
+Function DrawFrameCal(sxCal As Long, syCal As Long, exCal As Long, eyCal As Long, MadeFrame As Integer, xChrCnt As Integer, yChrCnt As Integer, lYear As Long, lMonth As Long) As Integer
+
+    Dim wdCal          As Long
+    Dim hgCal          As Long
+    Dim FrmCal         As Integer
+    Dim FntSz          As Long
+    Dim FntSzX         As Long
+    Dim FntSzY         As Long
+    Dim lrMargin       As Long
+    Dim tbMargin       As Long
+
+    Dim lDay           As Long
+    Dim lTotalDay      As Long
+    Dim iDate          As Integer
+    Dim yCal           As Integer
+    Dim xCal           As Integer
+    Dim iSYear         As Integer
+    Dim iSMonth        As Integer
+    Dim iSDay          As Integer
+    Dim strAnniversary As String
+	Dim lenAnniversary As Integer
+    Dim iHoliday       As Integer
+    Dim i              As Integer
+
+    wdCal = exCal - sxCal + 1
+    hgCal = eyCal - syCal + 1
+
+    If MadeFrame = 0 Then
+        FrmCal = Hun70.TextFrame(-1, sxCal, syCal, exCal, eyCal, 0, 0)
+        dmy = Hun70.SelectFrame(-1, FrmCal, 0)
+        dmy = Hun70.FrameBorderType(-1, 2)
+        dmy = Hun70.FrameBorderFillType(-1, 1)
+        dmy = Hun70.FrameBorderLineType(-1, 1)
+        dmy = Hun70.FrameBorderFillPattern(-1, 2)
+        dmy = Hun70.FrameBorderFillColour(-1, 255, 255, 255)
+        dmy = Hun70.FrameShadeSize(-1, wdCal / 40, hgCal / 40)   'Shade size도 파라메터로 넘길까?
+        dmy = Hun70.FrameShadePattern(-1, 1)
+        dmy = Hun70.FrameShadeColour(-1, 192, 192, 192)
+    Else
+        FrmCal = MadeFrame
+        dmy = Hun70.SelectFrame(-1, FrmCal, 0)
+    End If
+
+    lrMargin = wdCal / 20
+    tbMargin = hgCal / 20
+    FntSz = GetFontSize(sxCal, syCal, exCal, eyCal, xChrCnt, yChrCnt, 0.0, 0.5, lrMargin, tbMargin)
+    dmy = Hun70.FontSize(-1, FntSz)
+    dmy = Hun70.LineSpace(-1, FntSz * 0.5)
+    dmy = Hun70.FrameBorderMargin(-1, lrMargin, tbMargin, 0, 0)
+
+    dmy = Hun70.MoveCaret(-1, FrmCal, 1, 1)
+
+    lDay      = 1
+    lTotalDay = GetTotalDay(lYear, lMonth , lDay)
+    iDate     = lTotalDay mod 7
+
+    xCal = 27
+
+    dmy = Hun70.Font(-1, "Times New Roman", 0)
+    dmy = Hun70.Bold(-1, 1)
+    dmy = Hun70.Expand(-1, 200)
+    dmy = Hun70.InsertString(-1, Str(lMonth))
+    xCal = xCal - Len(Str(lMonth)) * 2
+    dmy = Hun70.Bold(-1, 0)
+    dmy = Hun70.Italic(-1, 1)
+    dmy = Hun70.Expand(-1, 100)
+    dmy = Hun70.InsertString(-1, "  " + GetMonthStr(lMonth))
+    xCal = xCal - 2 - Len(GetMonthStr(lMonth))
+    dmy = Hun70.Italic(-1, 0)
+    dmy = Hun70.InsertString(-1, Space(xCal) + Chr(10))   ' sCal Title을 위한 뒤공백. 마진이나 가운데 정렬일 때는 필요없음.
+
+    dmy = Hun70.Font(-1, "굴림체", 0)
+    dmy = Hun70.InsertString(-1, "일 월 화 수 목 금 토" + Chr(10))
+
+    '초기화
+    iSYear  = lYear
+    iSMonth = lMonth
+
+    yCal = 1
+    xCal = iDate
+
+    '앞공백
+    For i = 0 To xCal - 1
+        If i = 0 Then
+            dmy = Hun70.InsertString(-1, "  ")   '일요일은 앞에 공백이 없음
+        Else
+            dmy = Hun70.InsertString(-1, "   ")
+        End If
+    Next i
+
+    For i = 1 To a_GetMonthDay(CInt(lYear), CInt(lMonth))
+
+        iSDay = i
+        strAnniversary = GetAnniversary(iSYear, iSMonth, iSDay, iHoliday, lenAnniversary)
+
+        '날짜 출력
+        If xCal > 0 Then
+            dmy = Hun70.InsertString(-1, " ")   '일요일은 앞에 공백이 없음
+        End If
+
+        Select Case xCal
+            Case 0
+                dmy = TextForeColourSunday()
+            Case 6
+                dmy = TextForeColourSaturday()
+        End Select
+        If iHoliday = 1 Then
+            dmy = TextForeColourSunday()
+        End If
+
+        dmy = Hun70.InsertString(-1, Right("  " + Trim(Str(i)), 2))
+
+        'BackColour를 Transparent로 해야함. 지금은 아님.
+        Select Case xCal   '원색상으로... Function으로 만들까?
+            Case 0
+                dmy = TextForeColourNormal()
+            Case 6
+                dmy = TextForeColourNormal()
+        End Select
+        If iHoliday = 1 Then
+            dmy = TextForeColourNormal()
+        End If
+
+        '다음 날
+        xCal = xCal + 1
+        If xCal > 6 Then
+            dmy = Hun70.InsertChar(-1, 10)
+            yCal = yCal + 1
+            xCal = 0
+        End If
+
+    Next i
+
+    '뒤공백 : ParaAlignCentre() 일 때.
+    If xCal > 0 Then   '뒤공백이 필요함.
+        For i = 0 To 6 - xCal
+            dmy = Hun70.InsertString(-1, "   ")
+        Next i
+    End If
+
+    DrawFrameCal = FrmCal
+
+End Function
+
+
+Sub GetPimsData(iYear As Integer, iMonth As Integer, iDay As Integer, nOption As Integer)
+
+    Dim dmy As Integer
+    Dim i   As Integer
+
+    dmy = Pims31.PrepareSpecData(iYear, iMonth, iDay, nOption)
+
+	Select Case nOption
+		Case 1
+			g_PimsSpecstrMemo2 = Pims31.GetDatastrMemo2()
+			Goto Exit_GetPimsData
+		Case 2
+			g_PimsSpecstrMemo2 = Pims31.GetDatastrMemo2()
+			Goto Exit_GetPimsData
+		Case 3
+			g_PimsSpecstrMemo2 = Pims31.GetDatastrMemo2()
+			Goto Exit_GetPimsData
+	End Select
+
+    g_PimsDataCount = 0
+
+    If Pims31.GetbTodo() <> 0 Or Pims31.GetbApp() <> 0 Then
+        g_PimsDataCount = Pims31.GetDataCount()
+        If g_PimsDataCount > 101 Then
+            g_PimsDataCount = 101
+        End If
+
+        For i = 1 To g_PimsDataCount
+
+            dmy = Pims31.GetData(i - 1)
+
+            g_PimsDatabTodo(i - 1)         = Pims31.GetDatabTodo()
+            g_PimsDatabDone(i - 1)         = Pims31.GetDatabDone()
+            g_PimsDatadateYear(i - 1)      = Pims31.GetDatadateYear()
+            g_PimsDatadateMonth(i - 1)     = Pims31.GetDatadateMonth()
+            g_PimsDatadateDay(i - 1)       = Pims31.GetDatadateDay()
+            g_PimsDatadateHour(i - 1)      = Pims31.GetDatadateHour()
+            g_PimsDatadateMinute(i - 1)    = Pims31.GetDatadateMinute()
+            g_PimsDatadateSecond(i - 1)    = Pims31.GetDatadateSecond()
+            g_PimsDatadateDueYear(i - 1)   = Pims31.GetDatadateDueYear()
+            g_PimsDatadateDueMonth(i - 1)  = Pims31.GetDatadateDueMonth()
+            g_PimsDatadateDueDay(i - 1)    = Pims31.GetDatadateDueDay()
+            g_PimsDatadateDueHour(i - 1)   = Pims31.GetDatadateDueHour()
+            g_PimsDatadateDueMinute(i - 1) = Pims31.GetDatadateDueMinute()
+            g_PimsDatadateDueSecond(i - 1) = Pims31.GetDatadateDueSecond()
+            g_PimsDatastrText(i - 1)       = Pims31.GetDatastrText()
+            g_PimsDatastrPerson(i - 1)     = Pims31.GetDatastrPerson()
+            g_PimsDatastrType(i - 1)       = Pims31.GetDatastrType()
+            g_PimsDatastrPriority(i - 1)   = Pims31.GetDatastrPriority()
+
+        Next i
+    End If
+
+    g_sPimsDataCount = 0
+    If (Pims31.GetbTodo() <> 0 Or Pims31.GetbApp() <> 0) And Pims31.GetbShare() <> 0 Then
+        g_sPimsDataCount = Pims31.GetShareCount()
+        If g_sPimsDataCount > 101 Then
+            g_sPimsDataCount = 101
+        End If
+
+        For i = 1 To g_sPimsDataCount
+
+            dmy = Pims31.GetShare(i - 1)
+
+            g_sPimsDatabTodo(i - 1)         = Pims31.GetSharebTodo()
+            g_sPimsDatabDone(i - 1)         = Pims31.GetSharebDone()
+            g_sPimsDatadateYear(i - 1)      = Pims31.GetSharedateYear()
+            g_sPimsDatadateMonth(i - 1)     = Pims31.GetSharedateMonth()
+            g_sPimsDatadateDay(i - 1)       = Pims31.GetSharedateDay()
+            g_sPimsDatadateHour(i - 1)      = Pims31.GetSharedateHour()
+            g_sPimsDatadateMinute(i - 1)    = Pims31.GetSharedateMinute()
+            g_sPimsDatadateSecond(i - 1)    = Pims31.GetSharedateSecond()
+            g_sPimsDatadateDueYear(i - 1)   = Pims31.GetSharedateDueYear()
+            g_sPimsDatadateDueMonth(i - 1)  = Pims31.GetSharedateDueMonth()
+            g_sPimsDatadateDueDay(i - 1)    = Pims31.GetSharedateDueDay()
+            g_sPimsDatadateDueHour(i - 1)   = Pims31.GetSharedateDueHour()
+            g_sPimsDatadateDueMinute(i - 1) = Pims31.GetSharedateDueMinute()
+            g_sPimsDatadateDueSecond(i - 1) = Pims31.GetSharedateDueSecond()
+            g_sPimsDatastrText(i - 1)       = Pims31.GetSharestrText()
+            g_sPimsDatastrPerson(i - 1)     = Pims31.GetSharestrPerson()
+            g_sPimsDatastrType(i - 1)       = Pims31.GetSharestrType()
+            g_sPimsDatastrPriority(i - 1)   = Pims31.GetSharestrPriority()
+
+        Next i
+    End If
+
+Exit_GetPimsData:
+
+End Sub
+
+
+Sub Main
+
+    '-------------
+    ' 입력된 날짜
+    '-------------
+    Dim lYear          As Long
+    Dim lMonth         As Long
+    Dim lDay           As Long
+    Dim lTotalDay      As Long
+
+    '-----------------------------------------------------------
+    ' 월화수목금토일/月火水木金土日/SUN MON TUE WED THU FRI SAT
+    '-----------------------------------------------------------
+    Dim iDateType      As Integer
+
+    '------------------
+    ' Title의 Frame ID
+    '------------------
+    Dim FrmTitle1      As Integer
+    Dim FrmTitle2      As Integer
+
+    '----------------------------------------
+    ' 폰트 크기를 구할 때 글틀에 지정된 여백
+    '----------------------------------------
+    Dim lrMargin       As Long
+    Dim tbMargin       As Long
+
+    '--------------------
+    ' 지금 처리하는 날짜
+    '--------------------
+    Dim iSYear         As Integer
+    Dim iSMonth        As Integer
+    Dim iSDay          As Integer
+    Dim iSYoon         As Integer
+    Dim iLYear         As Integer
+    Dim iLMonth        As Integer
+    Dim iLDay          As Integer
+    Dim iLYoon         As Integer
+
+    '--------
+    ' 이전월
+    '--------
+    Dim lYearP         As Long
+    Dim lMonthP        As Long
+    Dim lDayP          As Long
+    Dim lTotalDayP     As Long
+
+    '--------
+    ' 다음월
+    '--------
+    Dim lYearN         As Long
+    Dim lMonthN        As Long
+    Dim lDayN          As Long
+    Dim lTotalDayN     As Long
+
+    '------
+    ' 요일
+    '------
+    Dim iDate          As Integer
+    '---------------
+    ' 이전월의 요일
+    '---------------
+    Dim iDateP         As Integer
+    '---------------
+    ' 다음월의 요일
+    '---------------
+    Dim iDateN         As Integer
+
+    Dim TblCal         As Integer   'A_CALENDAR_MONTHSTD에서 사용
+    Dim FrmCell(6, 6)  As Integer   'A_CALENDAR_MONTHSTD / A_CALENDAR_MONTHCARD
+    Dim TblCal1        As Integer   'A_CALENDAR_MONTHIMG에서 사용
+    Dim TblCal2        As Integer   'A_CALENDAR_MONTHIMG에서 사용
+    Dim yCntTblCal1    As Integer   'A_CALENDAR_MONTHIMG에서 Table Row Count
+    Dim yCntTblCal2    As Integer   'A_CALENDAR_MONTHIMG에서 Table Row Count
+    Dim FrmsCal        As Integer   '작은 달력(DAY/WEEK에서 사용)
+    Dim FrmBrd         As Integer   'A_CALENDAR_MONTHIMG / A_CALENDAR_WEEK
+    Dim FrmHeader(11)  As Integer   'A_CALENDAR_WEEK
+    Dim FrmDay(7)      As Integer   'A_CALENDAR_WEEK
+    Dim FrmMemo        As Integer   'A_CALENDAR_YEAR의 메모
+
+    '--------------------------
+    ' 날짜를 표시할 Cell Index
+    '--------------------------
+    Dim xCal           As Integer
+    Dim yCal           As Integer
+
+    '-----------------------------
+    ' 날짜를 표시할 Cell Position
+    '-----------------------------
+    Dim lCellStartX    As Long
+    Dim lCellStartY    As Long
+    Dim lCellEndX      As Long
+    Dim lCellEndY      As Long
+
+    '-----------
+    ' 기념일 명
+    '-----------
+    Dim strAnniversary As String
+	Dim lenAnniversary As Integer
+
+    '--------------------
+    ' 휴일인가. (노는날)
+    '--------------------
+    Dim iHoliday       As Integer
+
+    '----------------------------------------
+    ' 기념일 작성시 삽입되는 스페이스의 갯수
+    '----------------------------------------
+    Dim iSpaceCount    As Integer
+
+    '-----------
+    ' 범용 변수
+    '-----------
+    Dim i              As Integer
+    Dim j              As Integer
+
+    '-------------------
+    ' 인터페이스 초기화
+    '-------------------
+    Set Hun70      = CreateObject("HUN70.IF")
+    Set SolarLunar = CreateObject("HUN2K.SOLARLUNAR")
+    Set Pims31     = CreateObject("PIMSDATA2K.SCH")
+
+    '---------------------------------------------------------------------------------
+    ' 달력 만들기를 실행하면 사용자를 물어보는 Dialog가 나오는데 (불편함)
+    ' SetOptionDlgProc에서 DlgEnable iChkPims31DataID, g_IsPimsInstalled를 하기 위함.
+    '---------------------------------------------------------------------------------
+    dmy = Pims31.InitPims31SchDLL()
+    If dmy <> 0 Then
+        g_IsPimsInstalled = 1   '성공
+    Else
+        g_IsPimsInstalled = 0   '실패
+    End If
+
+    '---------------------------
+    ' 달력 만들기 Dialog Wizard
+    '---------------------------
+    Wizard
+
+    '----------------------
+    ' 사용자가 종료하였다.
+    '----------------------
+    If g_WizState <> A_STATE_MAKE Then
+        Goto Exit_Calendar2
+    End If
+
+    If a_Pims31Data <> 0 Then
+        dmy = Pims31.OpenPims31SchDLL()
+    End If
+
+    '-----------
+    ' 날짜 설정
+    '-----------
+    lYear = CLng(a_Year1)
+    If a_CalType = A_CALENDAR_YEAR Then
+        lMonth = 1
+    Else
+        lMonth = CLng(a_Month1)
+    End If
+    If a_CalType = A_CALENDAR_YEAR Or a_CalType = A_CALENDAR_MONTHSTD Or a_CalType = A_CALENDAR_MONTHCARD Or a_CalType = A_CALENDAR_MONTHIMG Then
+        lDay = 1
+    Else
+        lDay = CLng(a_Day1)
+    End If
+
+    '-------------------------------------------------
+    ' 현재 열려진 문서에 작성할 것인가? / 새문서에...
+    '-------------------------------------------------
+    If a_CurrDoc = 1 Then
+        dmy = Hun70.InsertPage(-1, 0)
+    Else
+        dmy = Hun70.NewDoc()
+    End If
+
+'--------------------------------
+' 지정된 날짜 범위만큼 반복한다.
+'--------------------------------
+Loop_Calendar:
+
+    lTotalDay = GetTotalDay(lYear, lMonth , lDay)
+    iDate     = lTotalDay mod 7
+
+    Select Case a_CalType
+        Case A_CALENDAR_DAY
+            iDateType = 0   'FrmTitle1에서 사용한다.
+            Goto A_CALENDAR_DAY
+        Case A_CALENDAR_WEEK
+            iDateType = a_Date
+            Goto A_CALENDAR_WEEK
+        Case A_CALENDAR_MONTHSTD
+            iDateType = a_Date
+        Case A_CALENDAR_MONTHCARD
+            iDateType = a_Date
+        Case A_CALENDAR_MONTHIMG
+            iDateType = 0
+        Case A_CALENDAR_YEAR
+            iDateType = 0
+            Goto A_CALENDAR_YEAR
+        Case Else
+            Goto Exit_Calendar2
+    End Select
+
+    '-----------------------
+    ' 이전월 및 다음월 계산
+    '-----------------------
+    lYearP  = lYear
+    lMonthP = lMonth - 1
+    lDayP   = lDay
+    If lMonthP = 0 Then
+        lYearP  = lYearP - 1
+        lMonthP = 12
+    End If
+    lTotalDayP = GetTotalDay(lYearP, lMonthP, lDayP)
+    iDateP     = lTotalDayP mod 7
+    lYearN  = lYear
+    lMonthN = lMonth + 1
+    lDayN   = lDay
+    If lMonthN = 13 Then
+        lYearN  = lYearN + 1
+        lMonthN = 1
+    End If
+    lTotalDayN = GetTotalDay(lYearN, lMonthN, lDayN)
+    iDateN     = lTotalDayN mod 7
+
+    '------------------
+    ' 페이지 정보 설정
+    '------------------
+    SetPaperSizeDir
+    GetPaperInfo
+    SetPageInfoMonth
+
+    '----------------
+    ' 월(제목1) 표시
+    '----------------
+    FrmTitle1 = Hun70.TextFrame(-1, g_sxTitle1, g_syTitle1, g_exTitle1, g_eyTitle1, 0, 0)
+    dmy = Hun70.SelectFrame(-1, FrmTitle1, 0)
+    dmy = Hun70.ParaAlignCentre(-1)
+    dmy = Hun70.Font(-1, g_FntTitle1, 0)
+    lrMargin = 0
+    tbMargin = 0
+    g_FntSzTitle1 = GetFontSize(g_sxTitle1, g_syTitle1, g_sxTitle1 + g_wdTitle1 * 0.98 - 1, g_syTitle1 + g_hgTitle1 * 0.98 - 1, 1, 1, 0.0, 0.0, lrMargin, tbMargin)
+    dmy = Hun70.FontSize(-1, g_FntSzTitle1)
+    dmy = Hun70.Bold(-1, 1)
+    dmy = Hun70.Italic(-1, 1)
+    dmy = TextForeColourTitle1()
+    dmy = ShadeTitle1()
+    dmy = Hun70.MoveCaret(-1, FrmTitle1, 1, 1)
+    dmy = Hun70.InsertString(-1, Trim(Str(lMonth)))
+
+    '------------------
+    ' 년월(제목2) 표시
+    '------------------
+    FrmTitle2 = Hun70.TextFrame(-1, g_sxTitle2, g_syTitle2, g_exTitle2, g_eyTitle2, 0, 0)
+    dmy = Hun70.SelectFrame(-1, FrmTitle2, 0)
+    dmy = Hun70.VerticalAlignCentre(-1)
+    dmy = Hun70.Font(-1, g_FntTitle2, 0)
+    lrMargin = 0
+    tbMargin = 0
+    g_FntSzTitle2 = GetFontSize(g_sxTitle2, g_syTitle2, g_sxTitle2 + g_wdTitle2 * 0.98 - 1, g_syTitle2 + g_hgTitle2 * 0.98 - 1, 5, 2, 0.0, 0.0, lrMargin, tbMargin)
+    dmy = Hun70.FontSize(-1, g_FntSzTitle2)
+    dmy = Hun70.LineSpace(-1, 0)
+    dmy = Hun70.Bold(-1, 1)
+    dmy = Hun70.Italic(-1, 1)
+    dmy = Hun70.MoveCaret(-1, FrmTitle2, 1, 1)
+    dmy = TextForeColourTitle2()
+    dmy = Hun70.InsertString(-1, Trim(Str(lYear)) + Chr(10) + GetMonthStr(lMonth))
+
+    '------
+    ' 로고
+    '------
+	dmy = Hun70.Image(-1, 0, a_Logo, g_sxLogo, g_syLogo, g_exLogo, g_eyLogo, 1)
+
+    '-------------
+    ' 달력 껍데기
+    '-------------
+    Select Case a_CalType
+        Case A_CALENDAR_MONTHSTD
+            '-----------------------------------
+            ' 전체 Cell(Table) 만들기
+            ' 작은 Size를 기준으로 하여 그린다.
+            '-----------------------------------
+            TblCal = Hun70.Table(-1, 0, 7, 7, g_sxCal, g_syCal, g_exCal, g_syCal + (g_hgHeader * 7) - 1)
+            dmy = Hun70.SelectTable(-1, TblCal)
+            '----------------
+            ' 전체 Cell 속성
+            '----------------
+            dmy = Hun70.SelectCellRange(-1, 0, 0, 6, 6)
+            dmy = Hun70.LockTable(-1, 1)
+            '----------------
+            ' 요일 Cell 속성
+            '----------------
+            dmy = Hun70.SelectCellRange(-1, 0, 0, 0, 6)
+            dmy = Hun70.VerticalAlignCentre(-1)
+            dmy = Hun70.ParaAlignCentre(-1)
+            dmy = Hun70.FrameBorderType(-1, 1)
+            dmy = Hun70.FrameBorderFillType(-1, 1)
+            dmy = Hun70.FrameBorderLineType(-1, 0)
+            dmy = Hun70.FrameBorderFillPattern(-1, 2)
+            dmy = Hun70.FrameBorderFillColour(-1, 192, 192, 192)
+            dmy = Hun70.Font(-1, g_FntHeader, 0)
+            lrMargin = 0
+            tbMargin = 0
+            g_FntSzHeader = GetFontSize(0, 0, (g_wdCell - 120) - 1, (g_hgHeader - 120) * 0.9 - 1, 2, 1, 0.0, 0.0, lrMargin, tbMargin)
+            dmy = Hun70.FontSize(-1, g_FntSzHeader)
+            dmy = Hun70.Bold(-1, 1)
+            '----------------
+            ' 날짜 Cell 속성
+            '----------------
+            dmy = Hun70.SelectCellRange(-1, 1, 0, 6, 6)
+            dmy = Hun70.CellSize(-1, 0, 1, 0, g_hgCell, 0)   '다시 높이를 늘린다.
+            dmy = Hun70.VerticalAlignTop(-1)
+            dmy = Hun70.Font(-1, g_FntCell, 0)
+'----------------------------
+' 훈민스케쥴러 일정의 줄간격
+'----------------------------
+dmy = Hun70.LineSpace(-1, 0)
+            lrMargin = 0
+            tbMargin = 0
+            g_FntSzCell = GetFontSize(0, 0, (g_wdCell - 120) - 1, (g_hgCell - 120) * 0.2 - 1, 1, 1, 0.0, 0.0, lrMargin, tbMargin)
+            dmy = Hun70.FontSize(-1, g_FntSzCell)
+            lrMargin = 0
+            tbMargin = 0
+            g_FntSzAnni = GetFontSize(0, 0, (g_wdCell - 120) - 1, (g_hgCell - 120) * 0.09 - 1, 1, 1, 0.0, 0.0, lrMargin, tbMargin)
+            FrmCell(6, 5) = Hun70.TextFrame(-1, g_sxCal + g_wdCell * 5, g_syCal + g_hgCell * (7 - 1) - g_CalOffsetY, g_sxCal + g_wdCell * 6 - 1, g_syCal + g_hgCell * (8 - 1) - g_CalOffsetY - 1, 0, 0)
+            FrmCell(6, 6) = Hun70.TextFrame(-1, g_sxCal + g_wdCell * 6, g_syCal + g_hgCell * (7 - 1) - g_CalOffsetY, g_sxCal + g_wdCell * 7 - 1, g_syCal + g_hgCell * (8 - 1) - g_CalOffsetY - 1, 0, 0)
+            dmy = Hun70.SelectTable(-1, TblCal)
+        Case A_CALENDAR_MONTHCARD
+            '------------------
+            ' 요일 Cell 만들기
+            '------------------
+            For xCal = 0 To 6
+                lCellStartX = g_sxCal + g_wdCell * xCal
+                lCellStartY = g_syCal + g_hgCell * 0
+                lCellEndX   = g_sxCal + g_wdCell * (xCal + 1) - g_wdCell / 15
+                lCellEndY   = g_syCal + g_hgHeader - g_hgHeader / 5
+                FrmCell(0, xCal) = Hun70.TextFrame(-1, lCellStartX, lCellStartY, lCellEndX, lCellEndY, 0, 0)
+            Next xCal
+            '----------------
+            ' 요일 Cell 속성
+            '----------------
+            dmy = Hun70.SelectFrame(-1, FrmCell(0, 0), 0)
+            For i = 1 To 6
+                dmy = Hun70.SelectFrame(-1, FrmCell(0, i), 1)
+            Next i
+            dmy = Hun70.VerticalAlignCentre(-1)
+            dmy = Hun70.ParaAlignCentre(-1)
+            dmy = Hun70.FrameBorderType(-1, 2)
+            dmy = Hun70.FrameBorderFillType(-1, 1)
+            dmy = Hun70.FrameBorderFillPattern(-1, 2)
+            dmy = Hun70.FrameBorderFillColour(-1, 192, 192, 192)
+            dmy = Hun70.FrameBorderLineType(-1, 1)
+            dmy = Hun70.FrameShadeSize(-1, g_wdCell / 40, g_hgCell / 40)
+            dmy = Hun70.FrameShadePattern(-1, 2)
+            dmy = Hun70.FrameShadeColour(-1, 128, 128, 128)
+            dmy = Hun70.Font(-1, g_FntCell, 0)
+            lrMargin = 0
+            tbMargin = 0
+            g_FntSzHeader = GetFontSize(0, 0, (g_wdCell - g_hgHeader / 5) - 1, (g_hgHeader - g_hgHeader / 5) * 0.8 - 1, 1, 1, 0.0, 0.0, lrMargin, tbMargin)
+            dmy = Hun70.FontSize(-1, g_FntSzHeader)
+            dmy = Hun70.Bold(-1, 1)
+            If a_Color Then
+                '--------
+                ' 일요일
+                '--------
+                dmy = Hun70.SelectFrame(-1, FrmCell(0, 0), 0)
+                dmy = Hun70.FrameBorderFillColour(-1, 255, 128, 128)
+                '--------
+                ' 토요일
+                '--------
+                dmy = Hun70.SelectFrame(-1, FrmCell(0, 6), 0)
+                dmy = Hun70.FrameBorderFillColour(-1, 128, 128, 255)
+            End If
+            '------------------
+            ' 날짜 Cell 만들기
+            '------------------
+            For yCal = 1 To 6
+                For xCal = 0 To 6
+                    lCellStartX = g_sxPage + g_wdCell * xCal
+                    lCellStartY = g_syPage + g_hgCell * yCal
+                    lCellEndX   = g_sxPage + g_wdCell * (xCal + 1) - g_wdCell / 15   ' - g_hgHeader / 5
+                    lCellEndY   = g_syPage + g_hgCell * (yCal + 1) - g_hgCell / 15   ' - g_hgHeader / 5
+                    FrmCell(yCal, xCal) = Hun70.TextFrame(-1, lCellStartX, lCellStartY, lCellEndX, lCellEndY, 0, 0)
+                Next xCal
+            Next yCal
+            '----------------
+            ' 날짜 Cell 속성
+            '----------------
+            For yCal = 1 To 6
+                For xCal = 0 To 6
+                    If yCal = 1 And xCal = 0 Then
+                        dmy = Hun70.SelectFrame(-1, FrmCell(yCal, xCal), 0)
+                    Else
+                        dmy = Hun70.SelectFrame(-1, FrmCell(yCal, xCal), 1)
+                    End If
+                Next xCal
+            Next yCal
+            dmy = Hun70.FrameBorderType(-1, 2)
+            dmy = Hun70.FrameBorderFillType(-1, 1)
+            dmy = Hun70.FrameBorderLineType(-1, 0)
+            dmy = Hun70.FrameBorderFillPattern(-1, 2)
+            dmy = Hun70.FrameBorderFillColour(-1, 255, 255, 255)
+            dmy = Hun70.FrameShadeSize(-1, g_wdCell / 40, g_hgCell / 40)
+            dmy = Hun70.FrameShadePattern(-1, 2)
+            dmy = Hun70.Font(-1, g_FntCell, 0)
+'----------------------------
+' 훈민스케쥴러 일정의 줄간격
+'----------------------------
+dmy = Hun70.LineSpace(-1, 0)
+            lrMargin = 0
+            tbMargin = 0
+            g_FntSzCell = GetFontSize(0, 0, (g_wdCell - g_hgHeader / 5) - 1, (g_hgCell - g_hgHeader / 5) * 0.2 - 1, 1, 1, 0.0, 0.0, lrMargin, tbMargin)
+            dmy = Hun70.FontSize(-1, g_FntSzCell)
+            lrMargin = 0
+            tbMargin = 0
+            g_FntSzAnni = GetFontSize(0, 0, (g_wdCell - g_hgHeader / 5) - 1, (g_hgCell - g_hgHeader / 5) * 0.09 - 1, 1, 1, 0.0, 0.0, lrMargin, tbMargin)
+        Case A_CALENDAR_MONTHIMG
+            If GetMonthDay(lMonth) > 30 Then
+                yCntTblCal1 = 16
+            Else
+                yCntTblCal1 = 15
+            End If
+            yCntTblCal2 = GetMonthDay(lMonth) - yCntTblCal1
+            TblCal1 = Hun70.Table(-1, 0, yCntTblCal1, 1, g_sxTblCal1, g_syTblCal1, g_exTblCal1, g_eyTblCal1)
+            dmy = Hun70.SelectTable(-1, TblCal1)
+            dmy = Hun70.SelectCellRange(-1, 0, 0, yCntTblCal1 - 1, 0)
+            dmy = Hun70.LockTable(-1, 1)
+            dmy = Hun70.Font(-1, g_FntCell, 0)
+'----------------------------
+' 훈민스케쥴러 일정의 줄간격
+'----------------------------
+dmy = Hun70.LineSpace(-1, 0)
+            lrMargin = 0
+            tbMargin = 0
+            '여백은 디폴트로 3pt이다. (- 120)
+            g_FntSzCell = GetFontSize(g_sxTblCal1, g_syTblCal1, g_exTblCal1 - 120, g_syTblCal1 + (g_hgTblCal1 / yCntTblCal1) * 0.45 - 1, 1, 1, 0.0, 0.0, lrMargin, tbMargin)
+            dmy = Hun70.FontSize(-1, g_FntSzCell)
+            TblCal2 = Hun70.Table(-1, 0, yCntTblCal1, 1, g_sxTblCal2, g_syTblCal2, g_exTblCal2, g_eyTblCal2)
+            dmy = Hun70.SelectTable(-1, TblCal2)
+            dmy = Hun70.SelectCellRange(-1, 0, 0, yCntTblCal1 - 1, 0)
+            dmy = Hun70.LockTable(-1, 1)
+            dmy = Hun70.Font(-1, g_FntCell, 0)
+'----------------------------
+' 훈민스케쥴러 일정의 줄간격
+'----------------------------
+dmy = Hun70.LineSpace(-1, 0)
+            dmy = Hun70.FontSize(-1, g_FntSzCell)   '위에서 지정된 폰트 크기와 같다고 가정한다.
+            FrmBrd = Hun70.TextFrame(-1, g_sxCal + g_wdCal / 5 * 1 + g_wdCal / 60, g_syCal, g_sxCal + g_wdCal / 5 * 4 - g_wdCal / 60, g_eyCal - g_CalOffsetY, 0, 0)
+            dmy = Hun70.SelectFrame(-1, FrmBrd, 0)
+            dmy = Hun70.FrameFillImage(-1, a_Image, 0)   '---Wizard Bridge
+            lrMargin = 0
+            tbMargin = 0
+            '여백은 디폴트로 3pt이다. (- 120)
+            g_FntSzAnni = GetFontSize(g_sxTblCal1, g_syTblCal1, g_exTblCal1 - 120, g_syTblCal1 + (g_hgTblCal1 / yCntTblCal1) * 0.2 - 1, 1, 1, 0.0, 0.0, lrMargin, tbMargin)
+    End Select
+
+    '-----------
+    ' 요일 출력
+    '-----------
+    If a_CalType <> A_CALENDAR_MONTHIMG Then   'A_CALENDAR_MONTHIMG은 "요일"이 없다.
+        For i = 0 To 6
+            Select Case a_CalType
+                Case A_CALENDAR_MONTHSTD
+                    'TblCal must be selected state.
+                    dmy = Hun70.MoveCaretToCell(-1, 0, i)
+                    dmy = TextForeColourMonth1Header(i)
+                Case A_CALENDAR_MONTHCARD
+                    dmy = Hun70.MoveCaret(-1, FrmCell(0, i), 1, 1)
+            End Select
+            Select Case a_CalType
+                Case A_CALENDAR_MONTHSTD
+                    'A_CALENDAR_MONTHSTD : iDateType = 0 -> SUN, MON...
+                    dmy = Hun70.InsertString(-1, UCase(Left(GetDateStr(CLng(i), iDateType), 3)))
+                Case A_CALENDAR_MONTHCARD
+                    'A_CALENDAR_MONTHCARD : iDateType = 1 -> 일 , 월 ...
+                    dmy = Hun70.InsertString(-1, GetDateStr(CLng(i), iDateType))
+            End Select
+        Next i
+    End If
+
+    '---------
+    ' 월 달력
+    '---------
+    iSYear  = lYear
+    iSMonth = lMonth
+
+    yCal = 1
+    xCal = iDate
+
+    For i = 1 To a_GetMonthDay(CInt(lYear), CInt(lMonth))
+        '-----------
+        ' 음력 체크
+        '-----------
+        iSDay = i
+        strAnniversary = GetAnniversary(iSYear, iSMonth, iSDay, iHoliday, lenAnniversary)
+        '-----------
+        ' Cell 선택
+        '-----------
+        Select Case a_CalType
+            Case A_CALENDAR_MONTHSTD
+                FrmCell(yCal, xCal) = Hun70.MoveCaretToCell(-1, yCal, xCal)
+            Case A_CALENDAR_MONTHCARD
+                dmy = Hun70.MoveCaret(-1, FrmCell(yCal, xCal), 1, 1)
+            Case A_CALENDAR_MONTHIMG
+                If i < yCntTblCal1 + 1 Then
+                    dmy = Hun70.SelectTable(-1, TblCal1)
+                    FrmCell(yCal, xCal) = Hun70.MoveCaretToCell(-1, i - 1, 0)
+                Else
+                    dmy = Hun70.SelectTable(-1, TblCal2)
+                    FrmCell(yCal, xCal) = Hun70.MoveCaretToCell(-1, i - yCntTblCal1 - 1, 0)
+                End If
+        End Select
+        '-----------
+        ' 날짜 출력
+        '-----------
+        Select Case xCal
+            Case 0
+                dmy = TextForeColourSunday()
+            Case 6
+                dmy = TextForeColourSaturday()
+        End Select
+        If iHoliday = 1 Then
+            dmy = TextForeColourSunday()
+        End If
+
+        dmy = Hun70.InsertString(-1, Right("  " + Trim(Str(i)), 2))
+
+        Select Case xCal   '원색상으로...
+            Case 0
+                dmy = TextForeColourNormal()
+            Case 6
+                dmy = TextForeColourNormal()
+        End Select
+        If iHoliday = 1 Then
+            dmy = TextForeColourNormal()
+        End If
+
+		'------------------------------------------------------------
+		' 사용자가 입력을 할 수 있으므로 폰트를 '굴림체'로 지정한다.
+		' 각 셀에 대해 폰트를 지정하므로 속도가 떨어질 수도 있다.
+		'------------------------------------------------------------
+        dmy = Hun70.Font(-1, g_FntAnni, 0)
+
+        '-------------
+        ' 기념일 체크
+        '-------------
+        iSpaceCount = 1
+        If strAnniversary <> "" Then
+            dmy = Hun70.FontSize(-1, g_FntSzAnni)
+            Select Case a_CalType
+                Case A_CALENDAR_MONTHSTD
+					iSpaceCount = Fix((g_wdCell - g_FntSzCell - g_hgHeader / 5) / g_FntSzAnni * 2) - lenAnniversary - 2
+                    If iSpaceCount > 0 Then
+                        strAnniversary = Space(iSpaceCount) + strAnniversary
+                    End If
+                Case A_CALENDAR_MONTHCARD
+					iSpaceCount = Fix((g_wdCell - g_FntSzCell - g_hgHeader / 5) / g_FntSzAnni * 2) - lenAnniversary - 4
+                    If iSpaceCount > 0 Then
+                        strAnniversary = Space(iSpaceCount) + strAnniversary
+                    End If
+                Case A_CALENDAR_MONTHIMG
+					iSpaceCount = Fix((g_wdTblCal1 - g_FntSzCell - g_hgHeader / 5) / g_FntSzAnni * 2) - lenAnniversary - 2
+                    If iSpaceCount > 0 Then
+                        strAnniversary = Space(iSpaceCount) + strAnniversary
+                    End If
+            End Select
+            dmy = Hun70.InsertString(-1, strAnniversary + Chr(10))
+            iSpaceCount = 4
+        End If
+
+        dmy = Hun70.FontSize(-1, g_FntSzAnni * 3 / 2)
+        '----------------------------
+        ' 훈민스케쥴러 읽어오기 시작
+        '----------------------------
+        If a_Pims31Data = 1 Then
+            GetPimsData iSYear, iSMonth, iSDay, 0
+            For j = 1 To g_PimsDataCount
+                '--------------------------------
+                ' 월 달력에서는 할일만 표시한다.
+                '--------------------------------
+                dmy = Hun70.InsertString(-1, Space(iSpaceCount) + g_PimsDatastrText(j - 1) + Chr(10))
+                iSpaceCount = 4
+            Next j
+            For j = 1 To g_sPimsDataCount
+                '--------------------------------
+                ' 월 달력에서는 할일만 표시한다.
+                '--------------------------------
+                dmy = Hun70.InsertString(-1, Space(iSpaceCount) + g_sPimsDatastrText(j - 1) + Chr(10))
+                iSpaceCount = 4
+            Next j
+        End If
+        '--------------------------
+        ' 훈민스케쥴러 읽어오기 끝
+        '--------------------------
+        
+        '---------
+        ' 다음 날
+        '---------
+        xCal = xCal + 1
+        If xCal > 6 Then
+            yCal = yCal + 1
+            xCal = 0
+        End If
+    Next i
+
+    If a_CalType = A_CALENDAR_MONTHIMG Then   'A_CALENDAR_MONTHIMG에서는 이전월/다음월 달력이 없다.
+        Goto Exit_Calendar1
+    End IF
+
+    '-------------
+    ' 이전월 달력
+    '-------------
+    Select Case a_CalType
+        Case A_CALENDAR_MONTHSTD
+            dmy = DrawFrameCal(1, 1, g_wdCell, g_hgCell, FrmCell(6, 5), 10, 8, lYearP, lMonthP)
+        Case A_CALENDAR_MONTHCARD
+            dmy = Hun70.MoveCaret(-1, FrmCell(6, 5), 1, 1)
+            dmy = DrawFrameCal(1, 1, g_wdCell - g_wdCell / 15, g_hgCell - g_hgCell / 15, FrmCell(6, 5), 10, 8, lYearP, lMonthP)
+    End Select
+
+    '-------------
+    ' 다음월 달력
+    '-------------
+    Select Case a_CalType
+        Case A_CALENDAR_MONTHSTD
+            dmy = DrawFrameCal(1, 1, g_wdCell, g_hgCell, FrmCell(6, 6), 10, 8, lYearN, lMonthN)
+        Case A_CALENDAR_MONTHCARD
+            dmy = Hun70.MoveCaret(-1, FrmCell(6, 6), 1, 1)
+            dmy = DrawFrameCal(1, 1, g_wdCell - g_wdCell / 15, g_hgCell - g_hgCell / 15, FrmCell(6, 6), 10, 8, lYearN, lMonthN)
+    End Select
+
+    Goto Exit_Calendar1
+
+A_CALENDAR_DAY:'--------------------------------------------------------------------------------
+
+    Dim CaretIn      As Integer 'Caret이 있는 Row
+    Dim LastLine(24) As Integer '몇 라인이 채워졌는가?
+    Dim iLine        As Integer 'Loop variable.
+
+    '------------------------------------------------------------
+    ' 음력 계산(초기화 : A_CALENDAR_DAY에서는 한번만 하면 된다.)
+    '------------------------------------------------------------
+    iSYear  = lYear
+    iSMonth = lMonth
+    iSDay   = lDay
+    dmy     = SolarLunar.GetLunarDate(iSYear, iSMonth, iSDay, iSYoon)
+    iLYear  = SolarLunar.GetLunarDateYear()
+    iLMonth = SolarLunar.GetLunarDateMonth()
+    iLDay   = SolarLunar.GetLunarDateDay()
+    iLYoon  = SolarLunar.GetLunarDateYoon()
+    strAnniversary = GetAnniversary(iSYear, iSMonth, iSDay, iHoliday, lenAnniversary)
+
+    '-------------
+    ' 페이지 설정
+    '-------------
+    SetPaperSizeDir
+    GetPaperInfo
+    SetPageInfoDay
+
+    '-----------
+    ' 제목 표시
+    '-----------
+    FrmTitle1 = Hun70.TextFrame(-1, g_sxTitle1, g_syTitle1, g_exTitle1, g_eyTitle1, 0, 0)
+    dmy = Hun70.SelectFrame(-1, FrmTitle1, 0)
+    dmy = Hun70.ParaAlignCentre(-1)
+    dmy = Hun70.Font(-1, g_FntTitle1, 0) '굴림
+    dmy = Hun70.Bold(-1, 1)
+    dmy = Hun70.MoveCaret(-1, FrmTitle1, 1, 1)
+    lrMargin = 0
+    tbMargin = 0
+    g_FntSzTitle1 = GetFontSize(g_sxTitle1, g_syTitle1, g_exTitle1, g_syTitle1 + g_hgTitle1 * 0.30 - 1, 8, 1, 0.0, 0.0, lrMargin, tbMargin)
+    dmy = Hun70.FontSize(-1, g_FntSzTitle1)
+    dmy = TextForeColourTitle1()
+    dmy = ShadeTitle1()
+    dmy = Hun70.InsertString(-1, Trim(Str(lYear)) + "년 " + Trim(Str(lMonth)) + "월 " + Trim(Str(lDay)) + "일" + Chr(10))
+    dmy = Hun70.TextForeColour(-1, 0, 0, 0) '원래대로...
+    dmy = Hun70.Shade(-1, 0)                '원래대로...
+    lrMargin = 0
+    tbMargin = 0
+    g_FntSzTitle1 = GetFontSize(g_sxTitle1, g_syTitle1, g_exTitle1, g_syTitle1 + g_hgTitle1 * 0.18 - 1, 7, 1, 0.0, 0.0, lrMargin, tbMargin)
+    dmy = Hun70.FontSize(-1, g_FntSzTitle1)
+    dmy = Hun70.InsertString(-1, "(음력 " + Trim(Str(iLMonth)) + "월 " + Trim(Str(iLDay)) + "일)" + Chr(10))
+    lrMargin = 0
+    tbMargin = 0
+    g_FntSzTitle1 = GetFontSize(g_sxTitle1, g_syTitle1, g_exTitle1, g_syTitle1 + g_hgTitle1 * 0.22 - 1, 3, 1, 0.0, 0.0, lrMargin, tbMargin)
+    dmy = Hun70.FontSize(-1, g_FntSzTitle1)
+    Select Case iDate
+        Case 0   '일요일
+            dmy = TextForeColourSunday()
+        Case 6   '토요일
+            dmy = TextForeColourSaturday()
+    End Select
+    If iHoliday = 1 Then   '휴일
+        dmy = TextForeColourSunday()
+    End If
+    dmy = Hun70.InsertString(-1, GetDateStr(CLng(iDate), iDateType) + "요일")   'iDateType = 0
+
+    '-----------
+    ' 휴일 표시
+    '-----------
+    If strAnniversary <> "" Then
+        FrmTitle2 = Hun70.TextFrame(-1, g_sxTitle2, g_syTitle2, g_exTitle2, g_eyTitle2, 0, 0)
+        dmy = Hun70.SelectFrame(-1, FrmTitle2, 0)
+        dmy = Hun70.ParaAlignRight(-1)
+        dmy = Hun70.Font(-1, g_FntTitle2, 0)   '굴림
+        dmy = Hun70.MoveCaret(-1, FrmTitle2, 1, 1)
+        lrMargin = 0
+        tbMargin = 0
+        g_FntSzTitle2 = GetFontSize(g_sxTitle2, g_syTitle2,  g_exTitle2, g_syTitle2 + g_hgTitle2 * 0.6 - 1, 1, 1, 0.0, 0.0, lrMargin, tbMargin)
+        dmy = Hun70.FontSize(-1, g_FntSzTitle2)
+        dmy = Hun70.InsertString(-1, strAnniversary)
+    End If
+
+	'----------
+	' 전체 틀.
+	'----------
+    TblCal = Hun70.Table(-1, 0, 28, 4, g_sxCal, g_syCal, g_exCal, g_eyCal)
+    dmy = Hun70.SelectTable(-1, TblCal)
+
+    '----------------
+    ' 전체 Cell 속성
+    '----------------
+    dmy = Hun70.SelectCellRange(-1, 0, 0, 3, 27)
+    dmy = Hun70.LockTable(-1, 1)
+
+    '------
+    ' 너비
+    '------
+    dmy = Hun70.SelectCellRange(-1, 0, 0, 27, 0)
+    dmy = Hun70.CellSize(-1, 1, 0, g_wdCal1 * 0.6, 0, 0)
+    dmy = Hun70.SelectCellRange(-1, 0, 0, 23, 0)
+    dmy = Hun70.ParaAlignCentre(-1)
+    dmy = Hun70.FrameBorderType(-1, 1)
+    dmy = Hun70.FrameBorderFillType(-1, 1)
+    dmy = Hun70.FrameBorderLineType(-1, 0)
+    dmy = Hun70.FrameBorderFillPattern(-1, 2)
+    dmy = Hun70.FrameBorderFillColour(-1, 224, 224, 224)
+    dmy = Hun70.Font(-1, g_FntHeader, 0)
+    lrMargin = 0
+    tbMargin = 0
+    g_FntSzHeader = GetFontSize(1, 1, g_wdCal1 * 0.6, g_hgCal / 28 * 0.8, 1, 1, 0.0, 0.0, lrMargin, tbMargin)
+    dmy = Hun70.FontSize(-1, g_FntSzHeader) 'Table의 크기를 변경시킨다.
+    dmy = Hun70.Bold(-1, 1)
+    dmy = Hun70.SelectCellRange(-1, 0, 1, 27, 1)
+    dmy = Hun70.CellSize(-1, 1, 0, g_wdCal1 * 0.4, 0, 0)
+    dmy = Hun70.CellBorder(-1, 2, 0, 0, 0, 0, 0, 0) '0 Column과의 경계를 없앤다.
+    dmy = Hun70.SelectCellRange(-1, 0, 1, 23, 1)
+    dmy = Hun70.ParaAlignCentre(-1)
+    dmy = Hun70.FrameBorderType(-1, 1)
+    dmy = Hun70.FrameBorderFillType(-1, 1)
+    dmy = Hun70.FrameBorderLineType(-1, 0)
+    dmy = Hun70.FrameBorderFillPattern(-1, 2)
+    dmy = Hun70.FrameBorderFillColour(-1, 224, 224, 224)
+    dmy = Hun70.Font(-1, "Arial", 0) 'g_Fnt???
+    lrMargin = 0
+    tbMargin = 0
+    g_FntSzHeader = GetFontSize(1, 1, g_wdCal1 * 0.4, g_hgCal / 28 / 3, 2, 1, 0.0, 0.5, lrMargin, tbMargin)
+    dmy = Hun70.FontSize(-1, g_FntSzHeader) 'g_FntSz???
+    dmy = Hun70.LineSpace(-1, g_FntSzHeader * 0.2)
+    dmy = Hun70.SelectCellRange(-1, 0, 2, 27, 2)
+    dmy = Hun70.CellSize(-1, 1, 0, g_wdCal2, 0, 0)
+    dmy = Hun70.CellBorder(-1, 2, 1, 2, 2, 0, 0, 0)
+    dmy = Hun70.SelectCellRange(-1, 0, 3, 27, 3)
+    dmy = Hun70.CellSize(-1, 1, 0, g_wdCal3, 0, 0)
+    dmy = Hun70.Font(-1, "굴림", 0)
+    lrMargin = 0
+    tbMargin = 0
+    g_FntSzCell = GetFontSize(1, 1, g_wdCal3, g_hgCal / 28 * 0.4, 2, 1, 0.0, 0.0, lrMargin, tbMargin)
+    dmy = Hun70.FontSize(-1, g_FntSzCell)
+    dmy = Hun70.LineSpace(-1, 0)
+
+    '--------
+    ' 합치기
+    '--------
+    For yCal = 0 To 22 Step 2
+        dmy = Hun70.MergeCells(-1, yCal, 0, yCal + 1, 0)
+        dmy = Hun70.MergeCells(-1, yCal, 1, yCal + 1, 1)
+        dmy = Hun70.SelectCellRange(-1, yCal, 2, yCal, 3)
+        dmy = Hun70.CellBorder(-1, 8, 1, 2, 2, 0, 0, 0)
+    Next yCal
+    dmy = Hun70.MergeCells(-1, 24, 0, 27, 3)
+
+	'----------
+	' 시 표시.
+	'----------
+    dmy = Hun70.MoveCaretToCell(-1,  0, 0)
+    dmy = Hun70.InsertString(-1, "7")
+    dmy = Hun70.MoveCaretToCell(-1,  2, 0)
+    dmy = Hun70.InsertString(-1, "8")
+    dmy = Hun70.MoveCaretToCell(-1,  4, 0)
+    dmy = Hun70.InsertString(-1, "9")
+    dmy = Hun70.MoveCaretToCell(-1,  6, 0)
+    dmy = Hun70.InsertString(-1, "10")
+    dmy = Hun70.MoveCaretToCell(-1,  8, 0)
+    dmy = Hun70.InsertString(-1, "11")
+    dmy = Hun70.MoveCaretToCell(-1, 10, 0)
+    dmy = Hun70.InsertString(-1, "12")
+    dmy = Hun70.MoveCaretToCell(-1, 12, 0)
+    dmy = Hun70.InsertString(-1, "1")
+    dmy = Hun70.MoveCaretToCell(-1, 14, 0)
+    dmy = Hun70.InsertString(-1, "2")
+    dmy = Hun70.MoveCaretToCell(-1, 16, 0)
+    dmy = Hun70.InsertString(-1, "3")
+    dmy = Hun70.MoveCaretToCell(-1, 18, 0)
+    dmy = Hun70.InsertString(-1, "4")
+    dmy = Hun70.MoveCaretToCell(-1, 20, 0)
+    dmy = Hun70.InsertString(-1, "5")
+    dmy = Hun70.MoveCaretToCell(-1, 22, 0)
+    dmy = Hun70.InsertString(-1, "6")
+
+	'----------
+	' 분 표시.
+	'----------
+    For i = 0 To 11
+        dmy = Hun70.MoveCaretToCell(-1, i * 2, 1)
+        dmy = Hun70.InsertString(-1, ":00" + Chr(10) + ":15" + Chr(10) + ":30" + Chr(10) + ":45")
+    Next i
+
+	'------------
+	' 메모 박스.
+	'------------
+    dmy = Hun70.MoveCaretToCell(-1, 24, 0)
+    dmy = Hun70.VerticalAlignTop(-1)
+    dmy = Hun70.Font(-1, "Times New Roman", 2) 'g_Fnt???
+    lrMargin = 0
+    tbMargin = 0
+    g_FntSzHeader = GetFontSize(1, 1, g_wdPage, (g_wdPage + g_hgPage) * 0.008, 2, 1, 0.0, 0.0, lrMargin, tbMargin)
+    '------------------------------------------------------------------------------
+    ' Portrait와 Landscape에서 폰트크기를 같게 한다. (A_CALENDAR_WEEK에서와 같다.)
+    '------------------------------------------------------------------------------
+    dmy = Hun70.FontSize(-1, g_FntSzHeader) 'g_FntSz???
+    dmy = Hun70.Bold(-1, 1)
+    dmy = Hun70.Italic(-1, 1)
+    Select Case a_Color
+        Case 0
+            dmy = Hun70.Shade(-1, 2)
+        Case 1
+            dmy = Hun70.Shade(-1, 6)
+            dmy = Hun70.TextForeColour(-1, 128, 192, 128)
+    End Select
+    dmy = Hun70.InsertString(-1, "Memo" + Chr(10))
+    dmy = Hun70.Font(-1, "굴림", 0)
+    dmy = Hun70.FontSize(-1, g_FntSzCell)
+    dmy = Hun70.LineSpace(-1, 0)
+    dmy = Hun70.Bold(-1, 0)
+    dmy = Hun70.Italic(-1, 0)
+    dmy = Hun70.Shade(-1, 0)
+    dmy = Hun70.TextForeColour(-1, 0, 0, 0)
+
+    '-----------------------
+    ' 훈민스케쥴러 읽어오기
+    '-----------------------
+    If a_Pims31Data = 1 Then
+
+        For i = 0 To 11
+            LastLine(i) = 1
+        Next i
+		'-------------------------------------------------
+		' Memo의 경우 'Memo'가 이미 InsertString되어있다.
+		'-------------------------------------------------
+        LastLine(24) = 2
+        CaretIn      = 24
+
+        GetPimsData CInt(lYear), CInt(lMonth), CInt(lDay), 0
+
+        For i = 1 To g_PimsDataCount
+			'------------------------------
+			' 할일을 메모란에 인쇄할 경우.
+			'------------------------------
+            If g_PimsDatabTodo(i - 1) = -1 Then
+'               If CaretIn <> 24 Then
+'                   dmy = Hun70.MoveCaretToCell(-1, 24, 3)
+'                   CaretIn = 24
+'                   For iLine = 1 To LastLine(24) - 1
+'                       dmy = Hun70.Down(-1, 0)
+'                   Next iLine
+'               End If
+
+''              dmy = Hun70.InsertString(-1, g_PimsDatastrText(i - 1) + "(" + g_PimsDatastrType(i - 1) + ")" + Chr(10))
+'               dmy = Hun70.InsertString(-1, g_PimsDatastrText(i - 1) + Chr(10))
+
+'               LastLine(24) = LastLine(24) + 1
+            Else
+				'------------
+				' 위치 계산.
+				'------------
+                yCal = (g_PimsDatadateHour(i - 1) - 7) * 2
+                If g_PimsDatadateMinute(i - 1) = 30 Then
+                    yCal = yCal + 1
+                End If
+
+                If yCal >= 0 And yCal <=23 Then
+					'------------
+					' 위치 이동.
+					'------------
+                    If CaretIn <> yCal Then
+                        dmy = Hun70.MoveCaretToCell(-1, yCal, 3)
+                        CaretIn = yCal
+                        For iLine = 1 To LastLine(yCal) - 1
+                            dmy = Hun70.Down(-1, 0)
+                        Next iLine
+                    End If
+
+'                   dmy = Hun70.InsertString(-1, g_PimsDatastrText(i - 1) + "(" + g_PimsDatastrType(i - 1) + ")" + Chr(10))
+                    dmy = Hun70.InsertString(-1, g_PimsDatastrText(i - 1) + Chr(10))
+
+					'----------------
+					' 위치 업데이트.
+					'----------------
+                    LastLine(yCal) = LastLine(yCal) + 1
+                End If
+            End If
+        Next i
+
+		'----------------
+		' 주간메모 내용.
+		'----------------
+		g_PimsSpecstrMemo2 = Pims31.GetDatastrMemo2()
+
+		'------------
+		' 위치 이동.
+		'------------
+		dmy = Hun70.MoveCaretToCell(-1, 24, 3)
+		CaretIn = 24
+		For iLine = 1 To LastLine(24) - 1
+			dmy = Hun70.Down(-1, 0)
+		Next iLine
+
+		dmy = Hun70.InsertString(-1, g_PimsSpecstrMemo2 + Chr(10))
+
+'		LastLine(24) = LastLine(24) + 1
+
+        For i = 1 To g_sPimsDataCount
+			'------------------------------
+			' 할일을 메모란에 인쇄할 경우.
+			'------------------------------
+            If g_sPimsDatabTodo(i - 1) = -1 Then
+'               If CaretIn <> 24 Then
+'                   dmy = Hun70.MoveCaretToCell(-1, 24, 3)
+'                   CaretIn = 24
+'                   For iLine = 1 To LastLine(24) - 1
+'                       dmy = Hun70.Down(-1, 0)
+'                   Next iLine
+'               End If
+
+''              dmy = Hun70.InsertString(-1, g_sPimsDatastrText(i - 1) + "(" + g_sPimsDatastrType(i - 1) + ")" + Chr(10))
+'               dmy = Hun70.InsertString(-1, g_sPimsDatastrText(i - 1) + Chr(10))
+
+'               LastLine(24) = LastLine(24) + 1
+            Else
+				'------------
+				' 위치 계산.
+				'------------
+                yCal = (g_sPimsDatadateHour(i - 1) - 7) * 2
+                If g_sPimsDatadateMinute(i - 1) = 30 Then
+                    yCal = yCal + 1
+                End If
+
+                If yCal >= 0 And yCal <=23 Then
+					'------------
+					' 위치 이동.
+					'------------
+                    If CaretIn <> yCal Then
+                        dmy = Hun70.MoveCaretToCell(-1, yCal, 3)
+                        CaretIn = yCal
+                        For iLine = 1 To LastLine(yCal) - 1
+                            dmy = Hun70.Down(-1, 0)
+                        Next iLine
+                    End If
+
+'                   dmy = Hun70.InsertString(-1, g_sPimsDatastrText(i - 1) + "(" + g_sPimsDatastrType(i - 1) + ")" + Chr(10))
+                    dmy = Hun70.InsertString(-1, g_sPimsDatastrText(i - 1) + Chr(10))
+
+					'----------------
+					' 위치 업데이트.
+					'----------------
+                    LastLine(yCal) = LastLine(yCal) + 1
+                End If
+
+            End If
+        Next i
+    End If
+
+    '----------------
+    ' 작은 달력 표시
+    '----------------
+	'------------------------------------
+    ' 작은 달력의 가로길이는 세로의 5/4.
+	'------------------------------------
+    FrmsCal = DrawFrameCal(g_sxPage, g_syPage, g_sxPage + (g_syCal - g_syPage - g_hgCal * 0.01 + 1) * 5 / 4 - 1, g_syCal - g_hgCal * 0.01, 0, 10, 8, lYear, lMonth)
+
+    Goto Exit_Calendar1
+
+A_CALENDAR_WEEK:'--------------------------------------------------------------------------------
+
+    '--------------------------
+    ' 7일 후... *P부터 *N까지.
+    '--------------------------
+
+	'------------------------------------
+	' 그 주 일요일로 부터 몇번째 날인가?
+	'------------------------------------
+    lDayN   = GetTotalDay(lYear, lMonth, lDay) Mod 7
+
+	'---------------
+	' 그 주 일요일.
+	'---------------
+    lYearP  = lYear
+    lMonthP = lMonth
+    lDayP   = lDay
+	For i = 1 To lDayN
+		GetPrevDayLong lYearP, lMonthP, lDayP
+	Next i
+
+	'----------
+	' 시작 일.
+	'----------
+    lDay   = lDayP
+    lMonth = lMonthP
+    lYear  = lYearP
+    iDate  = 0
+
+	'------------
+	' 토요일은 ?
+	'------------
+    lDayN   = lDay
+    lMonthN = lMonth
+    lYearN  = lYear
+	For i = 1 To 6
+		GetNextDayLong lYearN, lMonthN, lDayN
+	Next i
+
+    '------------------
+    ' 페이지 정보 설정
+    '------------------
+    SetPaperSizeDir
+    GetPaperInfo
+    SetPageInfoWeek
+
+    '-----------
+    ' 제목 표시
+    '-----------
+    FrmTitle1 = Hun70.TextFrame(-1, g_sxTitle1, g_syTitle1, g_exTitle1, g_eyTitle1, 0, 0)
+    dmy = Hun70.SelectFrame(-1, FrmTitle1, 0)
+    dmy = Hun70.ParaAlignCentre(-1)
+    dmy = Hun70.Font(-1, g_FntTitle1, 0)
+    dmy = Hun70.Bold(-1, 1)
+    dmy = Hun70.MoveCaret(-1, FrmTitle1, 1, 1)
+    lrMargin = 0
+    tbMargin = 0
+    g_FntSzTitle1 = GetFontSize(g_sxTitle1, g_syTitle1, g_exTitle1, g_syTitle1 + g_hgTitle1 * 0.42 - 1, 5, 1, 0.0, 0.0, lrMargin, tbMargin)
+    dmy = Hun70.FontSize(-1, g_FntSzTitle1)
+    dmy = TextForeColourTitle1()
+    dmy = ShadeTitle1()
+    dmy = Hun70.InsertString(-1, "주간 일정" + Chr(10))
+    dmy = Hun70.TextForeColour(-1, 0, 0, 0)   '원래대로...
+    dmy = Hun70.Shade(-1, 0)                  '원래대로...
+    lrMargin = 0
+    tbMargin = 0
+    g_FntSzTitle1 = GetFontSize(g_sxTitle1, g_syTitle1, g_exTitle1, g_syTitle1 + g_hgTitle1 * 0.32 - 1, 11, 1, 0.0, 0.0, lrMargin, tbMargin)
+    dmy = Hun70.FontSize(-1, g_FntSzTitle1)
+    dmy = Hun70.InsertString(-1, Trim(Str(lYearP)) + "년 " + Trim(Str(lMonthP)) + "월 " + Trim(Str(lDayP)) + "일 - ")
+    If lMonthN = lMonthP Then
+        dmy = Hun70.InsertString(-1, Trim(Str(lDayN)) + "일")
+    Else
+        If lYearN = lYearP Then
+            dmy = Hun70.InsertString(-1, Trim(Str(lMonthN)) + "월 " + Trim(Str(lDayN)) + "일")
+        Else
+            dmy = Hun70.InsertString(-1, Trim(Str(lYearN)) + "년 " + Trim(Str(lMonthN)) + "월 " + Trim(Str(lDayN)) + "일")
+        End IF
+    End If
+
+    FrmBrd = Hun70.TextFrame(-1, g_sxCal, g_syCal, g_exCal, g_eyCal, 0, 0)
+    dmy = Hun70.SelectFrame(-1, FrmBrd, 0)
+    dmy = Hun70.FrameBorderType(-1, 1)
+    dmy = Hun70.FrameBorderFillType(-1, 1)
+    dmy = Hun70.FrameBorderLineType(-1, 1)
+    dmy = Hun70.FrameBorderFillPattern(-1, 2)
+    dmy = Hun70.FrameBorderFillColour(-1, 224, 224, 224)
+
+    iSYear  = lYear
+    iSMonth = lMonth
+
+    g_gpCal = g_hgCal / 8 / 10   '간격
+
+    For i = 0 To 7
+
+        If i < 7 Then
+
+			If i = 1 Then
+				iSDay = lDay
+			End If
+
+            strAnniversary = GetAnniversary(CInt(lYear), CInt(lMonth), CInt(lDay), iHoliday, lenAnniversary)
+
+            lCellStartX = g_sxCal + g_gpCal
+            lCellStartY = g_syCal + (g_hgCal - g_gpCal) / 8 * i + g_gpCal
+            lCellEndX   = g_sxCal + g_wdCal / 10
+            lCellEndY   = g_syCal + (g_hgCal - g_gpCal) / 8 * (i + 1)
+
+            FrmHeader(i) = Hun70.TextFrame(-1, lCellStartX, lCellStartY, lCellEndX, lCellEndY, 0, 0)
+            dmy = Hun70.SelectFrame(-1, FrmHeader(i), 0)
+            dmy = Hun70.VerticalAlignCentre(-1)
+            dmy = Hun70.ParaAlignCentre(-1)
+            dmy = Hun70.Font(-1, g_FntHeader, 0)
+            dmy = Hun70.Bold(-1, 1)
+            dmy = Hun70.MoveCaret(-1, FrmHeader(i), 1, 1)
+
+            lrMargin = 0
+            tbMargin = 0
+            g_FntSzHeader = GetFontSize(0, 0, lCellEndX - lCellStartX + 1, (lCellEndY - lCellStartY + 1) * 0.18, 2, 1, 0.0, 0.0, lrMargin, tbMargin)
+            dmy = Hun70.FontSize(-1, g_FntSzHeader)
+
+            dmy = TextForeColourMonth1Header(iDate)
+            If iHoliday = 1 Then
+                dmy = TextForeColourSunday()
+            End If
+
+            dmy = Hun70.InsertString(-1, UCase(Left(GetDateStr(CLng(iDate), iDateType), 3)) + Chr(10))
+            dmy = TextForeColourNormal()
+
+            lrMargin = 0
+            tbMargin = 0
+            g_FntSzHeader = GetFontSize(0, 0, lCellEndX - lCellStartX + 1, (lCellEndY - lCellStartY + 1) * 0.3, 1, 1, 0.0, 0.0, lrMargin, tbMargin)
+            dmy = Hun70.FontSize(-1, g_FntSzHeader)
+            dmy = Hun70.Italic(-1, 1)
+            dmy = Hun70.InsertString(-1, Trim(Str(lDay)))
+
+            '날짜 증가 -> Next 앞으로 이동
+'            iDate = (iDate + 1) Mod 7
+'            GetNextDayLong lYear, lMonth, lDay
+
+        End If
+
+        lCellStartX = g_sxCal + g_wdCal / 10 + g_gpCal
+        lCellStartY = g_syCal + (g_hgCal - g_gpCal) / 8 * i + g_gpCal
+        lCellEndX   = g_exCal - g_gpCal
+        lCellEndY   = g_syCal + (g_hgCal - g_gpCal) / 8 * (i + 1)
+
+        FrmDay(i) = Hun70.TextFrame(-1, lCellStartX, lCellStartY, lCellEndX, lCellEndY, 0, 0)
+        dmy = Hun70.SelectFrame(-1, FrmDay(i), 0)
+        dmy = Hun70.FrameBorderType(-1, 1)
+        dmy = Hun70.FrameBorderFillType(-1, 1)
+        dmy = Hun70.FrameBorderLineType(-1, 1)
+        dmy = Hun70.FrameBorderFillPattern(-1, 2)
+        dmy = Hun70.FrameBorderFillColour(-1, 255, 255, 255)
+		'----------------------------
+		' 훈민스케쥴러 일정의 줄간격
+		'----------------------------
+		dmy = Hun70.LineSpace(-1, 0)
+
+        If i < 7 Then
+			If strAnniversary <> "" Then
+				dmy = Hun70.Font(-1, g_FntAnni, 0)
+				lrMargin = 0
+				tbMargin = 0
+				g_FntSzAnni = GetFontSize(1, 1, lCellEndX - lCellStartX + 1, (g_wdPage + g_hgPage) * 0.005, 1, 1, 0.0, 0.0, lrMargin, tbMargin)
+				dmy = Hun70.FontSize(-1, g_FntSzAnni)
+				dmy = Hun70.FrameBorderMargin(-1, g_FntSzAnni, g_FntSzAnni, g_FntSzAnni, g_FntSzAnni)
+				dmy = Hun70.MoveCaret(-1, FrmDay(i), 1, 1)
+				dmy = Hun70.InsertString(-1, strAnniversary + Chr(10))
+			End If
+
+			'-----------------------
+			' 훈민스케쥴러 읽어오기
+			'-----------------------
+			If a_Pims31Data = 1 Then
+				dmy = Hun70.Font(-1, "굴림", 0)
+				dmy = Hun70.FontSize(-1, 200)
+
+				GetPimsData CInt(lYear), CInt(lMonth), CInt(lDay), 0
+
+				For j = 1 To g_PimsDataCount
+					dmy = Hun70.InsertString(-1, g_PimsDatastrText(j - 1)  + Chr(10))
+				Next j
+				For j = 1 To g_sPimsDataCount
+					dmy = Hun70.InsertString(-1, g_sPimsDatastrText(j - 1) + Chr(10))
+				Next j
+			End If
+        End If
+
+        '날짜 증가
+         iDate = (iDate + 1) Mod 7
+         GetNextDayLong lYear, lMonth, lDay
+
+    Next i
+
+	'-----------------
+	' 주간 메모 박스.
+	'-----------------
+    lCellStartX = g_sxCal + g_wdCal / 10 + g_gpCal
+    lCellStartY = g_syCal + (g_hgCal - g_gpCal) / 8 * 7 + g_gpCal
+    lCellEndX   = g_exCal - g_gpCal
+    lCellEndY   = g_syCal + (g_hgCal - g_gpCal) / 8 * (7 + 1)
+
+    dmy = Hun70.SelectFrame(-1, FrmDay(7), 0)
+    dmy = Hun70.MoveCaret(-1, FrmDay(7), 1, 1)
+    dmy = Hun70.Font(-1, "Times New Roman", 2) 'g_Fnt???
+    lrMargin = 0
+    tbMargin = 0
+    g_FntSzHeader = GetFontSize(1, 1, lCellEndX - lCellStartX + 1, (g_wdPage + g_hgPage) * 0.008, 2, 1, 0.0, 0.0, lrMargin, tbMargin)
+    '------------------------------------------------
+    ' Portrait와 Landscape에서 폰트크기를 같게 한다.
+    '------------------------------------------------
+    dmy = Hun70.FontSize(-1, g_FntSzHeader) 'g_FntSz???
+    dmy = Hun70.Bold(-1, 1)
+    dmy = Hun70.Italic(-1, 1)
+    Select Case a_Color
+        Case 0
+            dmy = Hun70.Shade(-1, 2)
+        Case 1
+            dmy = Hun70.Shade(-1, 6)
+            dmy = Hun70.TextForeColour(-1, 128, 192, 128)
+    End Select
+    dmy = Hun70.InsertString(-1, "Memo" + Chr(10))
+    dmy = Hun70.LineSpace(-1, 0)
+    dmy = Hun70.Bold(-1, 0)
+    dmy = Hun70.Italic(-1, 0)
+    dmy = Hun70.Shade(-1, 0)
+    dmy = Hun70.TextForeColour(-1, 0, 0, 0)
+
+	'------------
+	' 주간 메모.
+	'------------
+    If a_Pims31Data = 1 Then
+        dmy = Hun70.Font(-1, "굴림", 0)
+        dmy = Hun70.FontSize(-1, 200)
+		'-------------------------------------------------
+		' 항상 월요일을 지정한다. (iSDay는 위에서 구했음)
+		'-------------------------------------------------
+        GetPimsData iSYear, iSMonth, iSDay, 1
+		g_PimsSpecstrMemo2 = Pims31.GetDatastrMemo2()
+
+		dmy = Hun70.InsertString(-1, g_PimsSpecstrMemo2 + Chr(10))
+    End If
+
+    '----------------
+    ' 작은 달력 표시
+    '----------------
+	'------------------------------------
+    ' 작은 달력의 가로길이는 세로의 5/4.
+	'------------------------------------
+    FrmsCal = DrawFrameCal(g_sxPage, g_syPage, g_sxPage + (g_syCal - g_syPage - g_hgCal * 0.01 + 1) * 5 / 4 - 1, g_syCal - g_hgCal * 0.01, 0, 10, 8, lYearP, lMonthP)
+
+	Goto Exit_Calendar1
+
+A_CALENDAR_YEAR:'--------------------------------------------------------------------------------
+
+    Dim xIdxsCal As Integer ' Loop variable
+    Dim yIdxsCal As Integer '     "
+    Dim sxsCal   As Long    ' 달력 좌표
+    Dim sysCal   As Long    '     "
+    Dim exsCal   As Long    '     "
+    Dim eysCal   As Long    '     "
+
+    '-------------------
+    ' 페이지 정보 설정.
+    '-------------------
+    SetPaperSizeDir
+    GetPaperInfo
+    SetPageInfoYear
+
+    '------------
+    ' 제목 표시.
+    '------------
+    FrmTitle1 = Hun70.TextFrame(-1, g_sxTitle1, g_syTitle1, g_exTitle1, g_eyTitle1, 0, 0)
+    dmy = Hun70.SelectFrame(-1, FrmTitle1, 0)
+    dmy = Hun70.Font(-1, g_FntTitle1, 0)
+    lrMargin = 0
+    tbMargin = 0
+    g_FntSzTitle1 = GetFontSize(g_sxTitle1, g_syTitle1, g_sxTitle1 + g_wdTitle1 * 0.8 - 1, g_syTitle1 + g_hgTitle1 * 0.8 - 1, 3, 1, 0.0, 0.0, lrMargin, tbMargin)
+    dmy = Hun70.FontSize(-1, g_FntSzTitle1)
+    dmy = Hun70.Bold(-1, 1)
+    dmy = TextForeColourTitle1()
+    dmy = ShadeTitle1()
+    dmy = Hun70.MoveCaret(-1, FrmTitle1, 1, 1)
+    dmy = Hun70.InsertString(-1, Trim(Str(lYear)) + "년")
+
+    '------------
+    ' 메모 표시.
+    '------------
+    FrmMemo = Hun70.TextFrame(-1, g_sxMemo, g_syMemo, g_exMemo, g_eyMemo, 0, 0)
+    dmy = Hun70.SelectFrame(-1, FrmMemo, 0)
+    dmy = Hun70.FrameBorderType(-1, 1)
+    dmy = Hun70.FrameBorderFillType(-1, 1)
+    dmy = Hun70.FrameBorderLineType(-1, 1)
+    dmy = Hun70.FrameBorderFillPattern(-1, 2)
+    dmy = Hun70.FrameBorderFillColour(-1, 255, 255, 255)
+    dmy = Hun70.Font(-1, g_FntMemo, 0)
+    lrMargin = 0
+    tbMargin = 0
+    g_FntSzMemo = GetFontSize(g_sxMemo, g_syMemo, g_sxMemo + g_wdMemo / 6 - 1, g_syMemo + g_hgMemo / 6 - 1, 2, 1, 0.0, 0.0, lrMargin, tbMargin)
+    dmy = Hun70.FontSize(-1, g_FntSzMemo)
+    dmy = Hun70.Bold(-1, 1)
+    dmy = Hun70.Italic(-1, 1)
+    dmy = TextForeColourTitle1()
+    dmy = ShadeTitle1()
+    dmy = Hun70.MoveCaret(-1, FrmMemo, 1, 1)
+    dmy = Hun70.InsertString(-1, "Memo" + Chr(10))
+    dmy = Hun70.LineSpace(-1, 0)
+    dmy = Hun70.Bold(-1, 0)
+    dmy = Hun70.Italic(-1, 0)
+    dmy = Hun70.Shade(-1, 0)
+    dmy = Hun70.TextForeColour(-1, 0, 0, 0)
+
+    If a_Pims31Data = 1 Then
+        dmy = Hun70.Font(-1, "굴림", 0)
+        dmy = Hun70.FontSize(-1, 200)
+        GetPimsData CInt(lYear), CInt(lMonth), CInt(lDay), 3
+		g_PimsSpecstrMemo2 = Pims31.GetDatastrMemo2()
+		dmy = Hun70.InsertString(-1, g_PimsSpecstrMemo2 + Chr(10))
+    End If
+
+    '-----------------
+    ' 작은 달력 표시.
+    '-----------------
+    For yIdxsCal = 0 To g_yCntsCal - 1
+        For xIdxsCal = 0 To g_xCntsCal - 1
+            sxsCal = g_sxCal + (g_wdCal / g_xCntsCal) * xIdxsCal + (g_wdCal / g_xCntsCal) * SCAL_GPRATE
+            sysCal = g_syCal + (g_hgCal / g_yCntsCal) * yIdxsCal + (g_hgCal / g_yCntsCal) * SCAL_GPRATE
+            exsCal = g_sxCal + (g_wdCal / g_xCntsCal) * xIdxsCal + (g_wdCal / g_xCntsCal) * (1.0 - SCAL_GPRATE)
+            eysCal = g_syCal + (g_hgCal / g_yCntsCal) * yIdxsCal + (g_hgCal / g_yCntsCal) * (1.0 - SCAL_GPRATE)
+
+            dmy = DrawFrameCal(sxsCal, sysCal, exsCal, eysCal, 0, 10, 8, lYear, lMonth)
+
+			'----------
+			' 다음 달.
+			'----------
+            lMonth = lMonth + 1
+        Next xIdxsCal
+    Next yIdxsCal
+
+Exit_Calendar1:
+
+    Select Case a_CalType
+        Case A_CALENDAR_DAY
+            GetNextDayLong lYear, lMonth, lDay
+'       Case A_CALENDAR_WEEK
+			'-----------------------------
+			' 주간은 자동적으로 증가한다.
+			'-----------------------------
+        Case A_CALENDAR_MONTHSTD
+            lMonth = lMonth + 1
+            If lMonth > 12 Then
+                lYear = lYear + 1
+                lMonth = 1
+            End If
+        Case A_CALENDAR_MONTHCARD
+            lMonth = lMonth + 1
+            If lMonth > 12 Then
+                lYear = lYear + 1
+                lMonth = 1
+            End If
+        Case A_CALENDAR_MONTHIMG
+            lMonth = lMonth + 1
+            If lMonth > 12 Then
+                lYear = lYear + 1
+                lMonth = 1
+            End If
+        Case A_CALENDAR_YEAR
+            '-------------------
+            ' (년) 달력의 다음.
+            '-------------------
+            lYear  = lYear + 1
+            lMonth = 1
+            lDay   = 1
+    End Select
+
+    '------------
+    ' 범위 체크.
+    '------------
+    If lYear = a_Year2 Then
+        If lMonth = a_Month2 Then
+            If lDay > a_Day2 Then
+                Goto Exit_Calendar2
+            End If
+        End If
+        If lMonth > a_Month2 Then
+            Goto Exit_Calendar2
+        End If
+    End If
+    If lYear > a_Year2 Then
+        Goto Exit_Calendar2
+    End If
+
+    '-----------------------------------------------------------------------------------------
+    ' 현재 페이지의 가장 처음 시작했던 곳으로 이동 (모든 달력의 Basic Frame에는 내용이 없다.)
+    ' Page Break를 삽입하고 (다음 페이지로 이동)
+    '-----------------------------------------------------------------------------------------
+    dmy = Hun70.InsertPage(-1, 0)
+
+    Goto Loop_Calendar
+
+'----------------------
+' *** 달력 종료 #2 ***
+'----------------------
+Exit_Calendar2:
+
+    dmy = Hun70.ArrowMode(-1)
+
+    '-------------------------------
+    ' 훈민스케쥴러(DLL)를 종료한다.
+    '-------------------------------
+    dmy = Pims31.ExitPims31SchDLL()
+
+End Sub
