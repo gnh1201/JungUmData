@@ -1,0 +1,345 @@
+Option Explicit
+
+Global g_wdPaper     As Long
+Global g_hgPaper     As Long
+Global g_lmPaper     As Long
+Global g_tmPaper     As Long
+Global g_rmPaper     As Long
+Global g_bmPaper     As Long
+Global g_sxPage         As Long
+Global g_syPage         As Long
+Global g_exPage         As Long
+Global g_eyPage         As Long
+Global g_wdPage         As Long
+Global g_hgPage         As Long
+Global g_Size        As Long ' MIN( g_wdPage , g_hgPage )
+
+Global bInit            As Integer '  initialized for Interrupt?
+
+Global CellID(10, 10)   As Long
+Global CellL(10, 10) As Long
+Global CellR(10, 10) As Long
+Global CellT(10, 10) As Long
+Global CellB(10, 10) As Long
+Global CellP(10, 10) As Long
+Global CellP2(10, 10)   As Long
+
+Global Hun90         As Object
+Global dmy           As Integer
+Global bQuit         As Integer
+Global bGameOver        As Integer
+Global bRestart         As Integer
+
+Global iBlockCount      As Integer
+Global iMineCount       As Integer
+
+Global FrmTitle         As Integer
+Global FrmMessage    As Integer
+Global i                As Integer
+Global j                As Integer
+Global k          As Integer
+Global ii               As Integer
+Global jj               As Integer
+
+Sub GetPaperInfo
+   dmy = Hun90.GetPaperSize(-1, -1, g_wdPaper, g_hgPaper)
+   dmy = Hun90.GetPaperMargins(-1, g_lmPaper, g_tmPaper, g_rmPaper, g_bmPaper)
+   g_sxPage = g_lmPaper
+   g_syPage = g_tmPaper
+   g_exPage = g_wdPaper - g_rmPaper - 1
+   g_eyPage = g_hgPaper - g_bmPaper - 1
+   g_wdPage = g_wdPaper - g_lmPaper - g_rmPaper
+   g_hgPage = g_hgPaper - g_tmPaper - g_bmPaper
+End Sub
+
+Function GetMineNear(x As Integer, y As Integer)
+   Dim Count As Integer
+   Count = 0
+   If x > 1 Then
+      Count = Count + CellP(x - 1, y)
+      If y > 1 Then
+         Count = Count + CellP(x - 1, y - 1)
+      End If
+      If y < 10 Then
+         Count = Count + CellP(x - 1, y + 1)
+      End If
+   End If
+   If x < 10 Then
+      Count = Count + CellP(x + 1, y)
+      If y > 1 Then
+         Count = Count + CellP(x + 1, y - 1)
+      End If
+      If y < 10 Then
+         Count = Count + CellP(x + 1, y + 1)
+      End If
+   End If
+   If y > 1 Then
+      Count = Count + CellP(x, y - 1)
+   End If
+   If y < 10 Then
+      Count = Count + CellP(x, y + 1)
+   End If
+   GetMineNear = Count
+End Function
+
+Sub Winner
+    FrmMessage = Hun90.TextFrame(-1, g_sxPage, g_eyPage / 2 - g_hgPage / 6, g_exPage, g_eyPage / 2 + g_hgPage / 6, 0, 0)
+    dmy = Hun90.SelectFrame(-1, FrmMessage, 0)
+    dmy = Hun90.FrameBorderType(-1, 200)
+    dmy = Hun90.FrameBorderFillType(-1, 1)
+    dmy = Hun90.FrameBorderFillColour(-1, 255, 255, 128)
+    dmy = Hun90.ParaAlignCentre(-1)
+    dmy = Hun90.VerticalAlignCentre(-1)
+    dmy = Hun90.Font(-1, "Times New Roman", 0)
+    dmy = Hun90.Bold(-1, 1)
+    dmy = Hun90.MoveCaret(-1, FrmMessage, 1, 1)
+    dmy = Hun90.FontSize(-1, 1000)
+    dmy = Hun90.TextForeColour(-1, 192, 64, 192)
+    dmy = Hun90.Shade(-1, 6)
+    dmy = Hun90.InsertString(-1, "Congratulation!" + Chr(10))
+    dmy = Hun90.FontSize(-1, 500)
+    dmy = Hun90.Shade(-1, 0)
+    dmy = Hun90.InsertString(-1, "Press SPACE BAR to restart.")
+   dmy = Hun90.ArrowMode(-1)
+
+   bInit     = 0
+   bGameOver = 1
+End Sub
+
+Sub ShowCard(x As Integer, y As Integer)
+   Dim Mine As Integer
+   If CellP2(x, y) = 0 Then
+      dmy = Hun90.SelectFrame(-1, CellID(x, y), 0)
+      dmy = Hun90.FrameBorderFillColour(-1, 255, 255, 255)
+      Mine = GetMineNear(x, y)
+      If Mine > 0 Then
+         dmy = Hun90.MoveCaret(-1, CellID(x, y), 1, 1)
+         dmy = Hun90.InsertString(-1, LTrim(RTrim(Str(Mine))))
+         dmy = Hun90.ArrowMode(-1)
+      End If
+      CellP2(x, y) = 1
+      iBlockCount = iBlockCount - 1
+      If iBlockCount = 0 And iMineCount = 15 Then
+         Winner
+      End If
+   End If
+End Sub
+
+Sub NoMineNear(x As Integer, y As Integer)
+   DIM xx               As Integer
+   DIM yy               As Integer
+   DIM xxx               As Integer
+   DIM yyy               As Integer
+   For xx = -1 To 1
+      For yy = -1 To 1
+         If GetMineNear(x, y) = 0 Then
+            xxx = x + xx
+            yyy = y + yy 
+            if xxx  > 0 AND xxx < 11 AND yyy>0 AND yyy<11 Then
+               If CellP2(xxx, yyy) = 0 Then
+                  ShowCard xxx, yyy
+                  If GetMineNear( xxx, yyy ) = 0 Then
+                     NoMineNear xxx, yyy
+                  End If
+               End If
+            End If
+         End If
+      Next yy
+   Next xx
+End Sub
+
+Sub GameOver
+    FrmMessage = Hun90.TextFrame(-1, g_sxPage, g_eyPage / 2 - g_hgPage / 6, g_exPage, g_eyPage / 2 + g_hgPage / 6, 0, 0)
+    dmy = Hun90.SelectFrame(-1, FrmMessage, 0)
+    dmy = Hun90.FrameBorderType(-1, 200)
+    dmy = Hun90.FrameBorderFillType(-1, 1)
+    dmy = Hun90.FrameBorderFillColour(-1, 255, 255, 128)
+    dmy = Hun90.ParaAlignCentre(-1)
+    dmy = Hun90.VerticalAlignCentre(-1)
+    dmy = Hun90.Font(-1, "Times New Roman", 0)
+    dmy = Hun90.Bold(-1, 1)
+    dmy = Hun90.MoveCaret(-1, FrmMessage, 1, 1)
+    dmy = Hun90.FontSize(-1, 1000)
+    dmy = Hun90.TextForeColour(-1, 192, 64, 192)
+    dmy = Hun90.Shade(-1, 6)
+    dmy = Hun90.InsertString(-1, "Game Over" + Chr(10))
+    dmy = Hun90.FontSize(-1, 500)
+    dmy = Hun90.Shade(-1, 0)
+    dmy = Hun90.InsertString(-1, "Press SPACE BAR to restart.")
+   dmy = Hun90.ArrowMode(-1)
+
+   bInit     = 0
+   bGameOver = 1
+End Sub
+
+Sub OnLButtonDown(x As Long, y As Long, r As Integer)
+   Dim MineCount As Integer
+   If bInit = 1 And r = 0 Then
+      dmy = Hun90.ClientToTwips(-1, x, y)
+      For ii = 1 To 10
+         For jj = 1 To 10
+            If x >= CellL(ii, jj) and x <= CellR(ii, jj) and y >= CellT(ii, jj) and y <= CellB(ii, jj) Then
+               If CellP2(ii, jj) = 0 Then
+                  If CellP(ii, jj) = 0 Then
+                     ShowCard ii, jj
+                     If GetMineNear(ii, jj) = 0 Then
+                        NoMineNear ii, jj
+                     End If
+                  Else
+                     GameOver
+                  End If
+               End If
+            End if
+         Next jj
+      Next ii
+   End If
+End Sub
+
+Sub OnRButtonDown(x As Long, y As Long, r As Integer)
+   If bInit = 1 And r = 0 And iMineCount < 15 Then
+      dmy = Hun90.ClientToTwips(-1, x, y)
+      For ii = 1 To 10
+         For jj = 1 To 10
+            If x >= CellL(ii, jj) and x <= CellR(ii, jj) and y >= CellT(ii, jj) and y <= CellB(ii, jj) Then
+               Select Case CellP2(ii, jj)
+                  Case 0
+                     dmy = Hun90.SelectFrame(-1, CellID(ii, jj), 0)
+                     dmy = Hun90.FrameBorderFillColour(-1, 255, 0, 0)
+                     CellP2(ii, jj) = 2
+                     iBlockCount = iBlockCount - 1
+                     iMineCount  = iMineCount  + 1
+                     If iBlockCount = 0 And iMineCount = 15 Then
+                        Winner
+                     End If
+                  Case 2
+                     dmy = Hun90.SelectFrame(-1, CellID(ii, jj), 0)
+                      dmy = Hun90.FrameBorderFillColour(-1, 0, 128, 128)
+                     CellP2(ii, jj) = 0
+                     iBlockCount = iBlockCount + 1
+                     iMineCount  = iMineCount  - 1
+               End Select 
+            End If
+         Next jj
+      Next ii
+   End If
+End Sub
+
+Sub OnEscKeyDown
+   bQuit = 1
+End Sub
+
+Sub OnSpaceKeyDown
+   If bGameOver = 1 Then
+      If FrmMessage > 0 Then
+         dmy = Hun90.DeleteFrame(-1, FrmMessage)
+         FrmMessage = 0
+      End If
+      bGameOver = 0
+      bRestart  = 1
+      bQuit     = 1
+   End If
+End Sub
+
+Sub Main
+
+   bInit     = 0
+   bQuit     = 0
+   bGameOver = 0
+   bRestart  = 0
+
+   FrmMessage = 0
+
+    Set Hun90 = CreateObject("HUN90.IF")
+   dmy = Hun90.NewDoc()
+   dmy = Hun90.MaxVerticalZoom()
+
+   GetPaperInfo
+
+    FrmTitle = Hun90.TextFrame(-1, g_sxPage, g_syPage, g_exPage, g_syPage + g_hgPage / 8, 0, 0)
+    dmy = Hun90.SelectFrame(-1, FrmTitle, 0)
+    dmy = Hun90.ParaAlignCentre(-1)
+    dmy = Hun90.VerticalAlignCentre(-1)
+    dmy = Hun90.Font(-1, "Times New Roman", 0)
+    dmy = Hun90.Bold(-1, 1)
+    dmy = Hun90.MoveCaret(-1, FrmTitle, 1, 1)
+    dmy = Hun90.FontSize(-1, 1000)
+    dmy = Hun90.TextForeColour(-1, 128, 192, 255)
+    dmy = Hun90.Shade(-1, 6)
+    dmy = Hun90.InsertString(-1, "JungUm MIME")
+
+   g_syPage = g_syPage + g_hgPage / 7
+   g_hgPage = g_hgPage - g_hgPage / 7
+
+   If g_wdPage < g_hgPage Then
+      g_Size = g_wdPage
+   Else
+      g_Size = g_hgPage
+   End If
+
+    dmy = Hun90.ArrowMode(-1)
+
+   For i = 1 To 10
+      For j = 1 To 10
+         CellL(i, j)  = g_sxPage + (g_Size / 10) * (j - 1)
+         CellR(i, j)  = g_sxPage + (g_Size / 10) * (j    ) - (g_Size / 100)
+         CellT(i, j)  = g_syPage + (g_Size / 10) * (i - 1)
+         CellB(i, j)  = g_syPage + (g_Size / 10) * (i    ) - (g_Size / 100)
+         CellID(i, j) = Hun90.TextFrame(-1, CellL(i, j), CellT(i, j), CellR(i, j), CellB(i, j), 0, 0)
+      Next j
+   Next i
+
+Step_Restart:
+
+   iBlockCount = 100
+   iMineCount  = 0
+
+   For i = 1 To 10
+      For j = 1 To 10
+         CellP(i, j)  = 0
+         CellP2(i, j) = 0
+
+         dmy = Hun90.MoveCaret(-1, CellID(i, j), 1, 1)
+          dmy = Hun90.DeleteChar(-1)
+      Next j
+   Next i
+
+   k = 1
+   Do While k <= 15
+      i = CInt(Rnd * 10 + 1)
+      j = CInt(Rnd * 10 + 1)
+      If i < 1 Or i > 10 Or j < 1 Or j > 10 Then
+      Else
+         If CellP(i, j) = 0 Then
+            CellP(i, j) = 1
+            k = k + 1
+         End If
+      End If
+   Loop
+
+   dmy = Hun90.SelectFrame(-1, CellID(1, 1), 3)
+   For i = 1 To 10
+      For j = 1 To 10
+         dmy = Hun90.SelectFrame(-1, CellID(i, j), 1)
+      Next j
+   Next i
+    dmy = Hun90.FrameBorderType(-1, 200)
+    dmy = Hun90.FrameBorderFillType(-1, 1)
+    dmy = Hun90.FrameBorderFillColour(-1, 0, 128, 128)
+    dmy = Hun90.ParaAlignCentre(-1)
+    dmy = Hun90.VerticalAlignCentre(-1)
+   dmy = Hun90.Font(-1, "Arial", 0)
+   dmy = Hun90.FontSize(-1, 600)
+
+   bInit = 1
+
+   Do While bQuit = 0
+   Loop
+
+   If bRestart = 1 Then
+      bQuit     = 0
+      bGameOver = 0
+      bRestart  = 0
+      Goto Step_Restart
+   End If
+
+End Sub

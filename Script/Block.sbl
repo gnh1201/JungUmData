@@ -1,0 +1,201 @@
+Option Explicit
+
+Global Hun90		As Object
+Global dmy			As Integer
+Global bQuit		As Integer
+Global g_wdPaper	As Long
+Global g_hgPaper	As Long
+Global g_lmPaper	As Long
+Global g_tmPaper	As Long
+Global g_rmPaper	As Long
+Global g_bmPaper	As Long
+Global g_sxPage		As Long
+Global g_syPage		As Long
+Global g_exPage		As Long
+Global g_eyPage		As Long
+Global g_wdPage		As Long
+Global g_hgPage		As Long
+Global block(7, 5)	As Integer
+Global blockl(7, 5)	As Long
+Global blockt(7, 5)	As Long
+Global blockr(7, 5)	As Long
+Global blockb(7, 5)	As Long
+Global bar			As Integer
+Global ball			As Integer
+Global barx			As Long
+Global barl			As Long
+Global bart			As Long
+Global barr			As Long
+Global barb			As Long
+Global ballx		As Long
+Global bally		As Long
+Global balldx		As Long
+Global balldy		As Long
+Global balll		As Long
+Global ballt		As Long
+Global ballr		As Long
+Global ballb		As Long
+Global ballsize		As Long
+Global bempty		As Integer
+
+Sub GetPaperInfo
+	dmy = Hun90.GetPaperSize(-1, -1, g_wdPaper, g_hgPaper)
+	dmy = Hun90.GetPaperMargins(-1, g_lmPaper, g_tmPaper, g_rmPaper, g_bmPaper)
+	g_sxPage = g_lmPaper
+	g_syPage = g_tmPaper
+	g_exPage = g_wdPaper - g_rmPaper - 1
+	g_eyPage = g_hgPaper - g_bmPaper - 1
+	g_wdPage = g_wdPaper - g_lmPaper - g_rmPaper
+	g_hgPage = g_hgPaper - g_tmPaper - g_bmPaper
+End Sub
+
+Sub DrawBlock
+	Dim sxPage  As Long
+	Dim syPage  As Long
+	Dim wdPage  As Long
+	Dim hgPage  As Long
+	Dim i    As Integer
+	Dim j    As Integer
+
+	sxPage = g_sxPage
+	syPage = g_syPage
+	wdPage = g_wdPage + g_wdPage / 100
+	hgPage = g_hgPage
+	For i = 1 To 7
+		For j = 1 to 5
+			block(i, j) = Hun90.Rectangle(-1, sxPage + (wdPage / 5) * (j - 1), syPage + (hgPage / 20) * (i + 2), sxPage + (wdPage / 5) * j - wdPage / 50, syPage + (hgPage / 20) * (i + 3) - hgPage / 100)
+			dmy = Hun90.FrameBorderFillType(-1, 1)
+			Select Case i
+				Case 1
+					dmy = Hun90.FrameBorderFillColour(-1, 255, 0, 0)
+				Case 2
+					dmy = Hun90.FrameBorderFillColour(-1, 255, 128, 0)
+				Case 3
+					dmy = Hun90.FrameBorderFillColour(-1, 255, 255, 0)
+				Case 4
+					dmy = Hun90.FrameBorderFillColour(-1, 0, 255, 0)
+				Case 5
+					dmy = Hun90.FrameBorderFillColour(-1, 0, 0, 255)
+				Case 6
+					dmy = Hun90.FrameBorderFillColour(-1, 0, 0, 128)
+				Case 7
+					dmy = Hun90.FrameBorderFillColour(-1, 255, 0, 255)
+			End Select
+			dmy = Hun90.GetFrameRect(-1, block(i, j), blockl(i, j), blockt(i, j), blockr(i, j), blockb(i, j))
+		Next j
+	Next i
+End Sub
+
+Sub OnLeftKeyDown
+	dmy = Hun90.GetFrameRect(-1, bar, barl, bart, barr, barb)
+	If barl > g_sxPage Then
+		dmy = Hun90.SelectFrame(-1, bar, 0)
+		dmy = Hun90.MoveFrame(-1, -100, 0)
+		dmy = Hun90.SelectFrame(-1, bar, 3)
+	End If
+End Sub
+
+Sub OnRightKeyDown
+	dmy = Hun90.GetFrameRect(-1, bar, barl, bart, barr, barb)
+	If barl + g_wdPage / 7 + 100 < g_exPage Then
+		dmy = Hun90.SelectFrame(-1, bar, 0)
+		dmy = Hun90.MoveFrame(-1, 100, 0)
+		dmy = Hun90.SelectFrame(-1, bar, 3)
+	End If
+End Sub
+
+Sub OnEscKeyDown
+	bQuit = 1
+End Sub
+
+Sub Main
+	Dim i        As Integer
+	Dim j        As Integer
+	Dim FrmTitle As Integer
+
+	Set Hun90 = CreateObject("HUN90.IF")
+	dmy = Hun90.NewDoc()
+	dmy = Hun90.MaxVerticalZoom()
+	GetPaperInfo
+
+    FrmTitle = Hun90.TextFrame(-1, g_sxPage, g_syPage, g_exPage, g_syPage + g_hgPage / 8, 0, 0)
+    dmy = Hun90.SelectFrame(-1, FrmTitle, 0)
+    dmy = Hun90.ParaAlignCentre(-1)
+    dmy = Hun90.VerticalAlignCentre(-1)
+    dmy = Hun90.Font(-1, "Arial", 0)
+    dmy = Hun90.Bold(-1, 1)
+    dmy = Hun90.MoveCaret(-1, FrmTitle, 1, 1)
+    dmy = Hun90.FontSize(-1, 1000)
+    dmy = Hun90.TextForeColour(-1, 128, 192, 255)
+    dmy = Hun90.Shade(-1, 6)
+    dmy = Hun90.InsertString(-1, "JungUm Block")
+
+	barx = g_sxPage + g_wdPage / 2 - g_wdPage / 14
+	bar = Hun90.Rectangle(-1, barx, g_syPage + g_hgPage * 0.8, barx + g_wdPage / 7, g_syPage + g_hgPage * 0.8 + g_hgPage / 100)
+	dmy = Hun90.FrameBorderFillType(-1, 1)
+	dmy = Hun90.FrameBorderFillColour(-1, 0, 128, 128)
+	ballsize = g_hgPage / 50
+	ballx = g_sxPage + g_wdPage / 2 - ballsize / 2
+	bally = g_syPage + g_hgPage * 0.8 - ballsize
+	ball = Hun90.Ellipse(-1, ballx, bally, ballx + ballsize, bally + ballsize)
+	dmy = Hun90.FrameBorderFillType(-1, 1)
+	dmy = Hun90.FrameBorderFillColour(-1, 0, 0, 0)
+	balldx = 20	
+	balldy = -20
+Step_Restart:
+	DrawBlock
+	bQuit = 0
+	Do While bQuit = 0
+
+		dmy = Hun90.SelectFrame(-1, ball, 0)
+		dmy = Hun90.MoveFrame(-1, balldx, balldy)
+		dmy = Hun90.SelectFrame(-1, ball, 3)
+
+		dmy = Hun90.GetFrameRect(-1, ball, balll, ballt, ballr, ballb)
+		dmy = Hun90.GetFrameRect(-1, bar, barl, bart, barr, barb)
+		if ballb + 10 > bart and ballt < barb + 10 then
+			if balll > barl and ballr < barr then
+				balldy = -10 * (Rnd+1)
+				goto Step_Loop
+			end if
+		end if
+		bempty = 1
+		for i = 1 to 7
+			for j = 1 to 5
+				if block(i, j) <> 0 then
+					if balll > blockl(i, j) and ballt > blockt(i, j) and ballr < blockr(i, j) and ballb < blockb(i, j) then
+						dmy = Hun90.DeleteFrame(-1, block(i, j))
+						block(i, j) = 0
+						if balldy > 0 then
+							balldy = -10 * (Rnd+1)
+						else
+							balldy = 10 * (Rnd+1)
+						end if
+						goto Step_Loop
+					end if
+					bempty = 0
+				end if
+			next j
+		next i
+		if bempty = 1 then
+			goto Step_Restart
+		end if
+		if ballr > g_exPage - ballsize then
+			balldx = -10 * (Rnd+1)
+			goto Step_Loop
+		end if
+		if balll < g_lmPaper + ballsize Then
+			balldx = 10 * (Rnd+1)
+			goto Step_Loop
+		end if
+		if ballb > g_eyPage - ballsize then
+			balldy = -10 * (Rnd+1)
+			goto Step_Loop
+		end if
+		if ballt < g_tmPaper + ballsize + 1800 Then  'upper title area  include
+			balldy = 10 * (Rnd+1)
+			goto Step_Loop
+		end if
+Step_Loop:
+	Loop
+End Sub
