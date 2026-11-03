@@ -10,4 +10,4 @@ These files were extracted from Samsung Electronics' Hunminjeongeum Global 2005.
 
 This collection was gathered as part of the Catswords Digital Data Format Dictionary project by [Catswords Research](https://catswords.com).
 
-> 이 자료는 [Catswords Research](https://catswords.com)의 Catswords Digital Data Format Dictionary 프로젝트의 일환으로 수집되었습니다.
+> 이 자료는 [캐츠워즈리서치](https://catswords.com)의 Catswords Digital Data Format Dictionary 프로젝트의 일환으로 수집되었습니다.
